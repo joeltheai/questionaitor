@@ -1,10 +1,29 @@
 
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="minimal" data-mode="light">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>questionaitor</title>
+    <script>
+      (() => {
+        try {
+          const raw = localStorage.getItem("questionaitor:theme");
+          if (!raw) return;
+          const parsed = JSON.parse(raw);
+          const state = parsed?.state ? parsed.state : {};
+          const themes = { minimal: 1, terminal: 1 };
+          const modes = { light: 1, dark: 1 };
+          const theme = themes[state.theme] ? state.theme : "minimal";
+          const mode = modes[state.mode] ? state.mode : "light";
+          document.documentElement.dataset.theme = theme;
+          document.documentElement.dataset.mode = mode;
+          document.documentElement.style.colorScheme = mode;
+        } catch {
+          /* ignore corrupt storage */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="app"></div>

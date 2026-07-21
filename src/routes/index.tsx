@@ -93,9 +93,7 @@ function Home() {
 			if (opts.blur) setPasteBlurred(true);
 		} catch (err) {
 			setPasteCount(null);
-			setPasteError(
-				err instanceof Error ? err.message : "Invalid JSON.",
-			);
+			setPasteError(err instanceof Error ? err.message : "Invalid JSON.");
 			setPasteBlurred(false);
 		}
 	}
@@ -194,14 +192,14 @@ function Home() {
 			{showUpload ? (
 				<>
 					{loadMode === "append" && questions?.length ? (
-						<div className="mt-6 border border-black p-4">
+						<div className="mt-6 border-theme p-4">
 							<p className="text-sm">
 								Adding to the current set ({questions.length} question
 								{questions.length === 1 ? "" : "s"}). Duplicates are skipped.
 							</p>
 							<button
 								type="button"
-								className="mt-3 border border-black px-3 py-1.5 text-sm"
+								className="mt-3 border-theme px-3 py-1.5 text-sm"
 								onClick={() => {
 									setLoadMode("replace");
 									setPhase("setup");
@@ -227,16 +225,16 @@ function Home() {
 								<div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
 									<h2 className="text-xl font-semibold">Paste JSON</h2>
 									{pasteError ? (
-										<p className="text-sm font-medium text-red-600">
+										<p className="text-sm font-medium text-danger">
 											{pasteError}
 										</p>
 									) : null}
 								</div>
 								<div className="relative mt-3 flex min-h-0 flex-1 flex-col">
 									<textarea
-										className={`block w-full flex-1 border border-black p-3 font-mono text-sm ${
+										className={`block w-full flex-1 border-theme p-3 font-mono text-sm ${
 											pasteBlurred ? "select-none blur-sm" : ""
-										} ${pasteError ? "border-red-600" : ""}`}
+										} ${pasteError ? "!border-danger" : ""}`}
 										value={paste}
 										onChange={(e) => {
 											const shouldBlur = pasteBlurOnChangeRef.current;
@@ -270,7 +268,7 @@ function Home() {
 											</p>
 											<button
 												type="button"
-												className="pointer-events-auto border border-black bg-white px-3 py-1.5 text-sm"
+												className="pointer-events-auto border-theme bg-bg px-3 py-1.5 text-sm"
 												onClick={() => {
 													setPaste("");
 													setPasteCount(null);
@@ -285,7 +283,7 @@ function Home() {
 								</div>
 								<button
 									type="button"
-									className="mt-3 border border-black bg-black px-3 py-1.5 text-sm text-white disabled:opacity-40 lg:hidden"
+									className="mt-3 border-theme bg-accent px-3 py-1.5 text-sm text-accent-fg disabled:opacity-40 lg:hidden"
 									disabled={pasteCount === null}
 									onClick={() => loadFromText(paste)}
 								>
@@ -297,7 +295,7 @@ function Home() {
 								<h2 className="text-xl font-semibold">Upload file</h2>
 								<section
 									aria-label="File drop zone"
-									className={`mt-3 flex flex-1 flex-col justify-center border border-black p-4 ${dragging ? "border-2" : ""}`}
+									className={`mt-3 flex flex-1 flex-col justify-center border-theme p-4 ${dragging ? "outline outline-2 outline-border -outline-offset-2" : ""}`}
 									onDragEnter={(e) => {
 										e.preventDefault();
 										setDragging(true);
@@ -324,7 +322,7 @@ function Home() {
 									</p>
 									<button
 										type="button"
-										className="mt-3 border border-black px-3 py-1.5 text-sm"
+										className="mt-3 border-theme px-3 py-1.5 text-sm"
 										onClick={() => fileInputRef.current?.click()}
 									>
 										{loadMode === "append" ? "Add from file" : "Upload file"}
@@ -345,7 +343,7 @@ function Home() {
 						</div>
 						<button
 							type="button"
-							className="mt-3 hidden border border-black bg-black px-3 py-1.5 text-sm text-white disabled:opacity-40 lg:inline-block"
+							className="mt-3 hidden border-theme bg-accent px-3 py-1.5 text-sm text-accent-fg disabled:opacity-40 lg:inline-block"
 							disabled={pasteCount === null}
 							onClick={() => loadFromText(paste)}
 						>
@@ -400,7 +398,7 @@ function CopyTemplateButton() {
 	return (
 		<button
 			type="button"
-			className="mt-3 border border-black px-3 py-1.5 text-sm"
+			className="mt-3 border-theme px-3 py-1.5 text-sm"
 			onClick={handleCopy}
 		>
 			{copied ? "Copied!" : "Copy template"}
@@ -486,7 +484,7 @@ function QuestionBankPanel({
 				<div className="flex flex-wrap gap-2">
 					<button
 						type="button"
-						className="border border-black px-3 py-1.5 text-sm disabled:opacity-40"
+						className="border-theme px-3 py-1.5 text-sm disabled:opacity-40"
 						disabled={!entries.length}
 						onClick={() => {
 							if (
@@ -503,7 +501,7 @@ function QuestionBankPanel({
 					</button>
 					<button
 						type="button"
-						className="border border-black px-3 py-1.5 text-sm"
+						className="border-theme px-3 py-1.5 text-sm"
 						onClick={() => {
 							if (
 								window.confirm(
@@ -534,7 +532,7 @@ function QuestionBankPanel({
 							const isViewing = viewingId === entry.id;
 							const isRenaming = renamingId === entry.id;
 							return (
-								<li key={entry.id} className="border border-black p-3">
+								<li key={entry.id} className="border-theme p-3">
 									<div className="flex flex-wrap items-start gap-3">
 										<label className="mt-0.5 flex items-start gap-2 text-sm">
 											<input
@@ -552,7 +550,7 @@ function QuestionBankPanel({
 													<span className="sr-only">Rename set</span>
 													<input
 														type="text"
-														className="w-full max-w-md border border-black px-2 py-1.5 font-medium"
+														className="w-full max-w-md border-theme px-2 py-1.5 font-medium"
 														value={renameValue}
 														onChange={(e) => setRenameValue(e.target.value)}
 														onKeyDown={(e) => {
@@ -583,14 +581,14 @@ function QuestionBankPanel({
 												<>
 													<button
 														type="button"
-														className="border border-black bg-black px-3 py-1.5 text-sm text-white"
+														className="border-theme bg-accent px-3 py-1.5 text-sm text-accent-fg"
 														onClick={commitRename}
 													>
 														Save name
 													</button>
 													<button
 														type="button"
-														className="border border-black px-3 py-1.5 text-sm"
+														className="border-theme px-3 py-1.5 text-sm"
 														onClick={cancelRename}
 													>
 														Cancel
@@ -600,14 +598,14 @@ function QuestionBankPanel({
 												<>
 													<button
 														type="button"
-														className="border border-black px-3 py-1.5 text-sm"
+														className="border-theme px-3 py-1.5 text-sm"
 														onClick={() => beginRename(entry)}
 													>
 														Rename
 													</button>
 													<button
 														type="button"
-														className="border border-black px-3 py-1.5 text-sm"
+														className="border-theme px-3 py-1.5 text-sm"
 														aria-expanded={isViewing}
 														onClick={() =>
 															setViewingId(isViewing ? null : entry.id)
@@ -617,14 +615,14 @@ function QuestionBankPanel({
 													</button>
 													<button
 														type="button"
-														className="border border-black px-3 py-1.5 text-sm"
+														className="border-theme px-3 py-1.5 text-sm"
 														onClick={() => onUse(entry.questions)}
 													>
 														Use
 													</button>
 													<button
 														type="button"
-														className="border border-black px-3 py-1.5 text-sm"
+														className="border-theme px-3 py-1.5 text-sm"
 														onClick={() => {
 															remove(entry.id);
 															setSelected((prev) => {
@@ -644,7 +642,7 @@ function QuestionBankPanel({
 									</div>
 
 									{isViewing ? (
-										<ol className="mt-4 list-decimal space-y-4 border-t border-black pt-4 pl-5">
+										<ol className="mt-4 list-decimal space-y-4 border-theme-t pt-4 pl-5">
 											{entry.questions.map((question) => (
 												<li
 													key={`${question.q}::${String(question.ans)}`}
@@ -680,7 +678,7 @@ function QuestionBankPanel({
 					<div className="mt-4 flex flex-wrap gap-2">
 						<button
 							type="button"
-							className="border border-black bg-black px-3 py-1.5 text-sm text-white disabled:opacity-40"
+							className="border-theme bg-accent px-3 py-1.5 text-sm text-accent-fg disabled:opacity-40"
 							disabled={selected.size === 0}
 							onClick={handleUseSelected}
 						>
@@ -689,7 +687,7 @@ function QuestionBankPanel({
 						</button>
 						<button
 							type="button"
-							className="border border-black px-3 py-1.5 text-sm disabled:opacity-40"
+							className="border-theme px-3 py-1.5 text-sm disabled:opacity-40"
 							disabled={selected.size < 2}
 							onClick={handleMix}
 						>
@@ -755,7 +753,7 @@ function QuizSetup({
 							Bank label (optional)
 							<input
 								type="text"
-								className="mt-1 block w-56 border border-black px-2 py-1.5"
+								className="mt-1 block w-56 border-theme px-2 py-1.5"
 								value={saveName}
 								onChange={(e) => setSaveName(e.target.value)}
 								placeholder="e.g. Midterm set A"
@@ -763,7 +761,7 @@ function QuizSetup({
 						</label>
 						<button
 							type="button"
-							className="border border-black px-3 py-1.5 text-sm"
+							className="border-theme px-3 py-1.5 text-sm"
 							onClick={() => {
 								const entry = save(questions, saveName);
 								if (entry) onSaved(entry.id);
@@ -775,7 +773,7 @@ function QuizSetup({
 				)}
 				<button
 					type="button"
-					className="border border-black px-3 py-1.5 text-sm"
+					className="border-theme px-3 py-1.5 text-sm"
 					onClick={onAddMore}
 				>
 					Add more questions
@@ -828,7 +826,7 @@ function QuizSetup({
 						<input
 							type="number"
 							min={0}
-							className="mt-1 block w-24 border border-black px-2 py-1.5"
+							className="mt-1 block w-24 border-theme px-2 py-1.5"
 							value={minutes}
 							onChange={(e) =>
 								setMinutes(Math.max(0, Number(e.target.value) || 0))
@@ -841,7 +839,7 @@ function QuizSetup({
 							type="number"
 							min={0}
 							max={59}
-							className="mt-1 block w-24 border border-black px-2 py-1.5"
+							className="mt-1 block w-24 border-theme px-2 py-1.5"
 							value={seconds}
 							onChange={(e) =>
 								setSeconds(
@@ -866,14 +864,14 @@ function QuizSetup({
 			<div className="mt-6 flex flex-wrap gap-3">
 				<button
 					type="button"
-					className="border border-black bg-black px-3 py-1.5 text-sm text-white"
+					className="border-theme bg-accent px-3 py-1.5 text-sm text-accent-fg"
 					onClick={handleStart}
 				>
 					Start test
 				</button>
 				<button
 					type="button"
-					className="border border-black px-3 py-1.5 text-sm"
+					className="border-theme px-3 py-1.5 text-sm"
 					onClick={onBack}
 				>
 					Load different questions
@@ -1004,10 +1002,8 @@ function QuizTaking({
 
 	return (
 		<div className="min-h-screen">
-			{flashing ? (
-				<div className="time-up-flash" aria-hidden="true" />
-			) : null}
-			<header className="sticky top-0 z-10 border-b border-black bg-white px-4 py-3">
+			{flashing ? <div className="time-up-flash" aria-hidden="true" /> : null}
+			<header className="sticky top-0 z-10 border-theme-b bg-bg px-4 py-3 pr-20">
 				<div className="mx-auto flex max-w-3xl items-center justify-between gap-4">
 					<div className="text-sm">
 						Question {index + 1} of {questions.length}
@@ -1037,8 +1033,8 @@ function QuizTaking({
 							return (
 								<label
 									key={String(choice)}
-									className={`flex cursor-pointer items-center gap-3 border border-black px-4 py-3 text-base ${
-										isSelected ? "bg-black text-white" : ""
+									className={`flex cursor-pointer items-center gap-3 border-theme px-4 py-3 text-base ${
+										isSelected ? "bg-accent text-accent-fg" : ""
 									} ${flashing ? "pointer-events-none" : ""}`}
 								>
 									<input
@@ -1059,7 +1055,7 @@ function QuizTaking({
 				<div className="mt-8 flex flex-wrap gap-3">
 					<button
 						type="button"
-						className="border border-black px-3 py-1.5 text-sm disabled:opacity-40"
+						className="border-theme px-3 py-1.5 text-sm disabled:opacity-40"
 						onClick={goPrev}
 						disabled={flashing || index === 0}
 					>
@@ -1067,7 +1063,7 @@ function QuizTaking({
 					</button>
 					<button
 						type="button"
-						className="border border-black bg-black px-3 py-1.5 text-sm text-white disabled:opacity-40"
+						className="border-theme bg-accent px-3 py-1.5 text-sm text-accent-fg disabled:opacity-40"
 						onClick={goNext}
 						disabled={flashing}
 					>
@@ -1075,7 +1071,7 @@ function QuizTaking({
 					</button>
 					<button
 						type="button"
-						className="border border-black px-3 py-1.5 text-sm disabled:opacity-40"
+						className="border-theme px-3 py-1.5 text-sm disabled:opacity-40"
 						onClick={() => onFinish(answers)}
 						disabled={flashing}
 					>
@@ -1113,14 +1109,14 @@ function QuizResults({
 			<div className="mt-6 flex flex-wrap gap-3">
 				<button
 					type="button"
-					className="border border-black bg-black px-3 py-1.5 text-sm text-white"
+					className="border-theme bg-accent px-3 py-1.5 text-sm text-accent-fg"
 					onClick={onRetake}
 				>
 					Retake with same questions
 				</button>
 				<button
 					type="button"
-					className="border border-black px-3 py-1.5 text-sm"
+					className="border-theme px-3 py-1.5 text-sm"
 					onClick={onNewQuestions}
 				>
 					Load new questions
@@ -1138,8 +1134,8 @@ function QuizResults({
 						return (
 							<li
 								key={`${question.q}::${String(question.ans)}`}
-								className={`border-2 p-4 text-base ${
-									correct ? "border-green-600" : "border-red-600"
+								className={`rounded-theme border-2 p-4 text-base ${
+									correct ? "border-success" : "border-danger"
 								}`}
 							>
 								<div className="font-medium">{question.q}</div>
@@ -1171,9 +1167,9 @@ function QuizResults({
 										return (
 											<li
 												key={String(choice)}
-												className={`border border-black px-3 py-2 text-sm ${
+												className={`border-theme px-3 py-2 text-sm ${
 													isCorrectChoice
-														? "bg-black text-white"
+														? "bg-accent text-accent-fg"
 														: isUserChoice
 															? "underline"
 															: ""

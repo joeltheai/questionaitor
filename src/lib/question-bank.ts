@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { Question } from "#/lib/questions";
+import { useTheme } from "#/lib/theme";
 
 export type BankEntry = {
 	id: string;
@@ -92,6 +93,8 @@ export const useQuestionBank = create<QuestionBankState>()(
 			clearAllSiteData: () => {
 				set({ entries: [] });
 				localStorage.clear();
+				// Re-seed theme defaults after wiping storage.
+				useTheme.getState().reset();
 			},
 		}),
 		{

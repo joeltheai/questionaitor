@@ -1,43 +1,147 @@
-
 @import "tailwindcss";
 
+@theme {
+	--color-bg: var(--theme-bg);
+	--color-fg: var(--theme-fg);
+	--color-muted: var(--theme-muted);
+	--color-border: var(--theme-border);
+	--color-accent: var(--theme-accent);
+	--color-accent-fg: var(--theme-accent-fg);
+	--color-danger: var(--theme-danger);
+	--color-success: var(--theme-success);
+	--radius-theme: var(--theme-radius);
+	--font-sans: var(--theme-font-sans);
+	--font-mono: var(--theme-font-mono);
+}
+
+/* ── Minimal (current look) ───────────────────────────────────────── */
+
+:root,
+[data-theme="minimal"][data-mode="light"] {
+	--theme-bg: #ffffff;
+	--theme-fg: #000000;
+	--theme-muted: rgb(0 0 0 / 0.7);
+	--theme-border: #000000;
+	--theme-accent: #000000;
+	--theme-accent-fg: #ffffff;
+	--theme-danger: #dc2626;
+	--theme-success: #16a34a;
+	--theme-radius: 0px;
+	--theme-border-width: 1px;
+	--theme-border-style: solid;
+	--theme-font-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+	--theme-font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+[data-theme="minimal"][data-mode="dark"] {
+	--theme-bg: #0a0a0a;
+	--theme-fg: #f5f5f5;
+	--theme-muted: rgb(245 245 245 / 0.7);
+	--theme-border: #f5f5f5;
+	--theme-accent: #f5f5f5;
+	--theme-accent-fg: #0a0a0a;
+	--theme-danger: #f87171;
+	--theme-success: #4ade80;
+	--theme-radius: 0px;
+	--theme-border-width: 1px;
+	--theme-border-style: solid;
+	--theme-font-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+	--theme-font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+/* ── Terminal (placeholder theme) ─────────────────────────────────── */
+
+[data-theme="terminal"][data-mode="light"] {
+	--theme-bg: #f4f7f0;
+	--theme-fg: #1a3d1a;
+	--theme-muted: rgb(26 61 26 / 0.7);
+	--theme-border: #2d6a2d;
+	--theme-accent: #1a5c1a;
+	--theme-accent-fg: #f4f7f0;
+	--theme-danger: #b91c1c;
+	--theme-success: #15803d;
+	--theme-radius: 4px;
+	--theme-border-width: 2px;
+	--theme-border-style: dashed;
+	--theme-font-sans: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+	--theme-font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+[data-theme="terminal"][data-mode="dark"] {
+	--theme-bg: #0b120b;
+	--theme-fg: #33ff66;
+	--theme-muted: rgb(51 255 102 / 0.7);
+	--theme-border: #33ff66;
+	--theme-accent: #33ff66;
+	--theme-accent-fg: #0b120b;
+	--theme-danger: #ff5555;
+	--theme-success: #33ff66;
+	--theme-radius: 4px;
+	--theme-border-width: 2px;
+	--theme-border-style: dashed;
+	--theme-font-sans: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+	--theme-font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
 * {
-  box-sizing: border-box;
+	box-sizing: border-box;
 }
 
 html,
 body,
 #app {
-  min-height: 100%;
+	min-height: 100%;
 }
 
 body {
-  margin: 0;
+	margin: 0;
+	background-color: var(--theme-bg);
+	color: var(--theme-fg);
+	font-family: var(--theme-font-sans);
+}
+
+/* Themed border: width/style/radius come from the active theme. */
+.border-theme {
+	border-width: var(--theme-border-width);
+	border-style: var(--theme-border-style);
+	border-color: var(--theme-border);
+	border-radius: var(--theme-radius);
+}
+
+.border-theme-b {
+	border-bottom-width: var(--theme-border-width);
+	border-bottom-style: var(--theme-border-style);
+	border-bottom-color: var(--theme-border);
+}
+
+.border-theme-t {
+	border-top-width: var(--theme-border-width);
+	border-top-style: var(--theme-border-style);
+	border-top-color: var(--theme-border);
 }
 
 @keyframes time-up-flash {
-  0%,
-  100% {
-    opacity: 0;
-  }
-  15%,
-  45%,
-  75% {
-    opacity: 1;
-    background-color: #000;
-  }
-  30%,
-  60% {
-    opacity: 1;
-    background-color: #fff;
-  }
+	0%,
+	100% {
+		opacity: 0;
+	}
+	15%,
+	45%,
+	75% {
+		opacity: 1;
+		background-color: var(--theme-accent);
+	}
+	30%,
+	60% {
+		opacity: 1;
+		background-color: var(--theme-bg);
+	}
 }
 
 .time-up-flash {
-  pointer-events: none;
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  animation: time-up-flash 0.55s ease-in-out;
+	pointer-events: none;
+	position: fixed;
+	inset: 0;
+	z-index: 50;
+	animation: time-up-flash 0.55s ease-in-out;
 }
-
