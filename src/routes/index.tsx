@@ -8,6 +8,7 @@ import {
 } from "#/lib/question-bank";
 import {
 	answersMatch,
+	CHATBOT_QUESTION_TEMPLATE,
 	formatTime,
 	parseQuestions,
 	type Question,
@@ -173,6 +174,14 @@ function Home() {
 					) : null}
 
 					<section className="mt-8">
+						<h2 className="text-xl font-semibold">Format sample</h2>
+						<p className="mt-2 text-sm">
+							Copy this into a chatbot so it knows the format.
+						</p>
+						<CopyTemplateButton />
+					</section>
+
+					<section className="mt-8">
 						<h2 className="text-xl font-semibold">Paste JSON</h2>
 						<textarea
 							className="mt-3 block w-full border border-black p-3 font-mono text-sm"
@@ -274,6 +283,30 @@ function Home() {
 				/>
 			)}
 		</div>
+	);
+}
+
+function CopyTemplateButton() {
+	const [copied, setCopied] = useState(false);
+
+	async function handleCopy() {
+		try {
+			await navigator.clipboard.writeText(CHATBOT_QUESTION_TEMPLATE);
+			setCopied(true);
+			window.setTimeout(() => setCopied(false), 2000);
+		} catch {
+			setCopied(false);
+		}
+	}
+
+	return (
+		<button
+			type="button"
+			className="mt-3 border border-black px-3 py-1.5 text-sm"
+			onClick={handleCopy}
+		>
+			{copied ? "Copied!" : "Copy template"}
+		</button>
 	);
 }
 

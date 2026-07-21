@@ -83,3 +83,13 @@ export function formatTime(totalSeconds: number): string {
 	const seconds = safe % 60;
 	return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
+
+/** Sample JSON users can copy into a chatbot to show the expected format. */
+export const CHATBOT_QUESTION_TEMPLATE = `[
+  {
+    "q": "Your question?",
+    "choices": [4.25, 5, 3.67, 2],
+    "ans": 4.25
+  }
+]`;
+
