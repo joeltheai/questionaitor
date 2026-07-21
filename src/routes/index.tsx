@@ -44,7 +44,7 @@ function Home() {
 	const [paste, setPaste] = useState("");
 	const [pasteCount, setPasteCount] = useState<number | null>(null);
 	const [pasteError, setPasteError] = useState<string | null>(null);
-	const [pasteBlurred, setPasteBlurred] = useState(false);
+	const [pastePreview, setPastePreview] = useState<Question[] | null>(null);
 	const [questions, setQuestions] = useState<Question[] | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [dragging, setDragging] = useState(false);
@@ -53,7 +53,7 @@ function Home() {
 	const [loadMode, setLoadMode] = useState<LoadMode>("replace");
 	const [savedEntryId, setSavedEntryId] = useState<string | null>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
-	const pasteBlurOnChangeRef = useRef(false);
+	const pastePreviewOnChangeRef = useRef(false);
 	const saveToBank = useQuestionBank((s) => s.save);
 
 	function applyQuestions(
@@ -82,22 +82,30 @@ function Home() {
 		setSavedEntryId(entry?.id ?? null);
 	}
 
-	function syncPaste(text: string, opts: { blur?: boolean } = {}) {
+	function clearPaste() {
+		setPaste("");
+		setPasteCount(null);
+		setPasteError(null);
+		setPastePreview(null);
+	}
+
+	function syncPaste(text: string, opts: { preview?: boolean } = {}) {
 		setPaste(text);
 		if (!text.trim()) {
 			setPasteCount(null);
 			setPasteError(null);
-			setPasteBlurred(false);
+			setPastePreview(null);
 			return;
 		}
 		try {
-			setPasteCount(parseQuestions(text).length);
+			const parsed = parseQuestions(text);
+			setPasteCount(parsed.length);
 			setPasteError(null);
-			if (opts.blur) setPasteBlurred(true);
+			if (opts.preview) setPastePreview(parsed);
 		} catch (err) {
 			setPasteCount(null);
 			setPasteError(err instanceof Error ? err.message : "Invalid JSON.");
-			setPasteBlurred(false);
+			setPastePreview(null);
 		}
 	}
 
@@ -155,10 +163,7 @@ function Home() {
 		setError(null);
 		setLoadMode("replace");
 		setSavedEntryId(null);
-		setPaste("");
-		setPasteCount(null);
-		setPasteError(null);
-		setPasteBlurred(false);
+		clearPaste();
 	}
 
 	if (phase === "taking" && questions && config) {
@@ -231,64 +236,83 @@ function Home() {
 					<div className="mt-8">
 						<div className="grid gap-8 lg:grid-cols-[1fr_16rem] lg:items-stretch">
 							<div className="flex flex-col">
-								<div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-									<h2 className="text-xl font-semibold">Paste JSON</h2>
-									{pasteError ? (
-										<p className="text-sm font-medium text-danger">
-											{pasteError}
-										</p>
+								<div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+									<div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+										<h2 className="text-xl font-semibold">Paste JSON</h2>
+										{pasteError ? (
+											<p className="text-sm font-medium text-danger">
+												{pasteError}
+											</p>
+										) : null}
+									</div>
+									{pasteCount !== null ? (
+										<div className="flex flex-wrap items-center gap-2">
+											<p className="text-sm font-medium">
+												{pasteCount} question
+												{pasteCount === 1 ? "" : "s"} pasted
+											</p>
+											<button
+												type="button"
+												className="border-theme px-3 py-1.5 text-sm"
+												onClick={() => {
+													if (pastePreview) {
+														setPastePreview(null);
+													} else {
+														syncPaste(paste, { preview: true });
+													}
+												}}
+											>
+												{pastePreview ? "Edit" : "Preview"}
+											</button>
+											<button
+												type="button"
+												className="border-theme px-3 py-1.5 text-sm"
+												onClick={clearPaste}
+											>
+												Clear
+											</button>
+										</div>
 									) : null}
 								</div>
-								<div className="relative mt-3 flex min-h-0 flex-1 flex-col">
-									<textarea
-										className={`block w-full flex-1 border-theme p-3 font-mono text-sm ${
-											pasteBlurred ? "select-none blur-sm" : ""
-										} ${pasteError ? "!border-danger" : ""}`}
-										value={paste}
-										onChange={(e) => {
-											const shouldBlur = pasteBlurOnChangeRef.current;
-											pasteBlurOnChangeRef.current = false;
-											syncPaste(e.target.value, { blur: shouldBlur });
-										}}
-										onPaste={() => {
-											pasteBlurOnChangeRef.current = true;
-										}}
-										rows={12}
-										readOnly={pasteBlurred}
-										aria-invalid={pasteError !== null}
-										aria-label={
-											pasteBlurred && pasteCount !== null
-												? `${pasteCount} questions pasted`
-												: "Paste JSON"
-										}
-										placeholder={`[
+								<div className="relative mt-3 h-[18.5rem]">
+									{pastePreview ? (
+										<ul className="absolute inset-0 space-y-2 overflow-y-auto border-theme p-3">
+											{pastePreview.map((question, index) => (
+												<li
+													key={`${index}::${question.q}::${String(question.ans)}`}
+													className="border-theme p-3 text-sm"
+												>
+													{question.q}
+												</li>
+											))}
+										</ul>
+									) : (
+										<textarea
+											className={`absolute inset-0 block size-full resize-none border-theme p-3 font-mono text-sm ${
+												pasteError ? "!border-danger" : ""
+											}`}
+											value={paste}
+											onChange={(e) => {
+												const shouldPreview = pastePreviewOnChangeRef.current;
+												pastePreviewOnChangeRef.current = false;
+												syncPaste(e.target.value, {
+													preview: shouldPreview,
+												});
+											}}
+											onPaste={() => {
+												pastePreviewOnChangeRef.current = true;
+											}}
+											aria-invalid={pasteError !== null}
+											aria-label="Paste JSON"
+											placeholder={`[
   {
     "q": "Your question?",
     "choices": [4.25, 5, 3.67, 2],
     "ans": 4.25
   }
 ]`}
-									/>
-									{pasteBlurred && pasteCount !== null ? (
-										<div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-3 p-4 text-center">
-											<p className="text-lg font-semibold">
-												{pasteCount} question
-												{pasteCount === 1 ? "" : "s"} pasted
-											</p>
-											<button
-												type="button"
-												className="pointer-events-auto border-theme bg-bg px-3 py-1.5 text-sm"
-												onClick={() => {
-													setPaste("");
-													setPasteCount(null);
-													setPasteError(null);
-													setPasteBlurred(false);
-												}}
-											>
-												Clear
-											</button>
-										</div>
-									) : null}
+										/>
+									)}
 								</div>
 								<button
 									type="button"
