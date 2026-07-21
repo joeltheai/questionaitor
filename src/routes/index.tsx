@@ -346,9 +346,14 @@ function useCountdown(durationSeconds: number, onExpire: () => void) {
 	const [secondsLeft, setSecondsLeft] = useState(durationSeconds);
 	const onExpireEvent = useEffectEvent(onExpire);
 
+	const [prevDuration, setPrevDuration] = useState(durationSeconds);
+	if (durationSeconds !== prevDuration) {
+		setPrevDuration(durationSeconds);
+		setSecondsLeft(durationSeconds);
+	}
+
 	useEffect(() => {
 		const endsAt = Date.now() + durationSeconds * 1000;
-		setSecondsLeft(durationSeconds);
 		let expired = false;
 
 		const id = window.setInterval(() => {
@@ -383,11 +388,9 @@ function QuizTaking({
 }) {
 	const [index, setIndex] = useState(0);
 	const [answers, setAnswers] = useState(initialAnswers);
-	const answersRef = useRef(answers);
-	answersRef.current = answers;
 
 	const secondsLeft = useCountdown(config.durationSeconds, () => {
-		onFinish(answersRef.current);
+		onFinish(answers);
 	});
 
 	const current = questions[index];
