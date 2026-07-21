@@ -17,20 +17,26 @@ export function parseQuestions(raw: string): Question[] {
 		throw new Error("Input is empty.");
 	}
 
-	// Allow a looser paste format: unquoted keys, single quotes, and
-	// choices written as {a, b, c} instead of [a, b, c].
-	const normalized = trimmed
-		.replace(/'/g, '"')
-		.replace(/(\w+)\s*:/g, '"$1":')
-		.replace(/"choices"\s*:\s*\{([^}]*)\}/g, (_, inner: string) => {
-			return `"choices": [${inner}]`;
-		});
-
 	let parsed: unknown;
 	try {
-		parsed = JSON.parse(normalized);
+		parsed = JSON.parse(trimmed);
 	} catch {
-		throw new Error("Could not parse JSON. Check the format and try again.");
+		// Allow a looser paste format: unquoted keys, single quotes, and
+		// choices written as {a, b, c} instead of [a, b, c].
+		// Only applied when strict JSON.parse fails, so colons inside
+		// question strings (e.g. "…roll is:") are left alone.
+		const normalized = trimmed
+			.replace(/'/g, '"')
+			.replace(/(\w+)\s*:/g, '"$1":')
+			.replace(/"choices"\s*:\s*\{([^}]*)\}/g, (_, inner: string) => {
+				return `"choices": [${inner}]`;
+			});
+
+		try {
+			parsed = JSON.parse(normalized);
+		} catch {
+			throw new Error("Could not parse JSON. Check the format and try again.");
+		}
 	}
 
 	const list = Array.isArray(parsed) ? parsed : [parsed];
