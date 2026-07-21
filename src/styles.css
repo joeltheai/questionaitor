@@ -100,6 +100,15 @@ body {
 	font-family: var(--theme-font-sans);
 }
 
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]) {
+	cursor: pointer;
+}
+
+button:disabled {
+	cursor: not-allowed;
+}
+
 /* Brand mark: always use minimal theme sans so ✽ stays consistent across themes. */
 .logo-mark {
 	font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
