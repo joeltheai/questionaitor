@@ -63,37 +63,52 @@ export function ThemeSwitcher() {
 					aria-label={`Theme: ${THEME_LABELS[theme]}`}
 					onClick={() => setMenuOpen((open) => !open)}
 				>
-					<ChevronDown className="size-3.5" strokeWidth={2} />
+					<ChevronDown
+						className={`size-3.5 transition-transform duration-200 ease-out ${
+							menuOpen ? "rotate-180" : "rotate-0"
+						}`}
+						strokeWidth={2}
+					/>
 				</button>
 
-				{menuOpen ? (
-					<div
-						className="absolute top-full right-0 mt-1 min-w-28 border-theme bg-bg py-1"
-						role="menu"
-						aria-label="Theme"
-					>
-						{THEME_IDS.map((id) => {
-							const selected = id === theme;
-							return (
-								<button
-									key={id}
-									type="button"
-									role="menuitemradio"
-									aria-checked={selected}
-									className={`block w-full px-3 py-1.5 text-left text-sm ${
-										selected ? "bg-accent text-accent-fg" : "hover:opacity-70"
-									}`}
-									onClick={() => {
-										setTheme(id);
-										setMenuOpen(false);
-									}}
-								>
-									{THEME_LABELS[id]}
-								</button>
-							);
-						})}
+				<div
+					className={`absolute top-full right-0 mt-1 grid w-max transition-[grid-template-rows] duration-200 ease-out ${
+						menuOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+					}`}
+				>
+					<div className="min-h-0 overflow-hidden">
+						<div
+							className="min-w-28 border-theme bg-bg py-1"
+							role="menu"
+							aria-label="Theme"
+							aria-hidden={!menuOpen}
+						>
+							{THEME_IDS.map((id) => {
+								const selected = id === theme;
+								return (
+									<button
+										key={id}
+										type="button"
+										role="menuitemradio"
+										aria-checked={selected}
+										tabIndex={menuOpen ? 0 : -1}
+										className={`block w-full px-3 py-1.5 text-left text-sm ${
+											selected
+												? "bg-accent text-accent-fg"
+												: "hover:opacity-70"
+										}`}
+										onClick={() => {
+											setTheme(id);
+											setMenuOpen(false);
+										}}
+									>
+										{THEME_LABELS[id]}
+									</button>
+								);
+							})}
+						</div>
 					</div>
-				) : null}
+				</div>
 			</div>
 		</div>
 	);
