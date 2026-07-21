@@ -1,5 +1,7 @@
+import { Dialog } from "@base-ui/react/dialog";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { ConfirmDialog } from "#/components/ConfirmDialog";
 import {
 	entryLabel,
 	formatUploadedAt,
@@ -406,6 +408,11 @@ function CopyTemplateButton() {
 	);
 }
 
+type PendingConfirm =
+	| { kind: "clear-bank" }
+	| { kind: "clear-site" }
+	| { kind: "delete"; id: string; label: string };
+
 function QuestionBankPanel({
 	onUse,
 	appendLabel,
@@ -424,6 +431,9 @@ function QuestionBankPanel({
 	const [showAnswers, setShowAnswers] = useState(false);
 	const [renamingId, setRenamingId] = useState<string | null>(null);
 	const [renameValue, setRenameValue] = useState("");
+	const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(
+		null,
+	);
 
 	function beginRename(entry: (typeof entries)[number]) {
 		setRenamingId(entry.id);
@@ -479,9 +489,6 @@ function QuestionBankPanel({
 		if (renamingId === viewingId) cancelRename();
 	}
 
-	const closeViewEvent = useEffectEvent(closeView);
-	const cancelRenameEvent = useEffectEvent(cancelRename);
-
 	const viewingEntry = viewingId
 		? (entries.find((entry) => entry.id === viewingId) ?? null)
 		: null;
@@ -489,27 +496,57 @@ function QuestionBankPanel({
 		viewingEntry && renamingId === viewingEntry.id,
 	);
 
-	useEffect(() => {
-		if (!viewingEntry) return;
+	const confirmCopy =
+		pendingConfirm?.kind === "clear-bank"
+			? {
+					title: "Clear question bank?",
+					description: "Delete every saved question set from the bank?",
+					confirmLabel: "Clear bank",
+				}
+			: pendingConfirm?.kind === "clear-site"
+				? {
+						title: "Clear all site data?",
+						description:
+							"Clear all local data for this website? This cannot be undone.",
+						confirmLabel: "Clear all data",
+					}
+				: pendingConfirm?.kind === "delete"
+					? {
+							title: "Delete question set?",
+							description: `Delete “${pendingConfirm.label}”? This cannot be undone.`,
+							confirmLabel: "Delete",
+						}
+					: null;
 
-		function onKeyDown(event: KeyboardEvent) {
-			if (event.key !== "Escape") return;
-			if (isRenamingView) {
-				event.preventDefault();
-				cancelRenameEvent();
-				return;
-			}
-			closeViewEvent();
+	const confirmCopyRef = useRef(confirmCopy);
+	if (confirmCopy) confirmCopyRef.current = confirmCopy;
+	const visibleConfirm = confirmCopy ?? confirmCopyRef.current;
+
+	function runPendingConfirm() {
+		if (!pendingConfirm) return;
+		if (pendingConfirm.kind === "clear-bank") {
+			clearBank();
+			setSelected(new Set());
+			closeView();
+			cancelRename();
+			return;
 		}
-
-		const previousOverflow = document.body.style.overflow;
-		document.body.style.overflow = "hidden";
-		window.addEventListener("keydown", onKeyDown);
-		return () => {
-			document.body.style.overflow = previousOverflow;
-			window.removeEventListener("keydown", onKeyDown);
-		};
-	}, [viewingEntry, isRenamingView]);
+		if (pendingConfirm.kind === "clear-site") {
+			clearAllSiteData();
+			setSelected(new Set());
+			closeView();
+			cancelRename();
+			return;
+		}
+		remove(pendingConfirm.id);
+		setSelected((prev) => {
+			const next = new Set(prev);
+			next.delete(pendingConfirm.id);
+			return next;
+		});
+		if (viewingId === pendingConfirm.id) closeView();
+		if (renamingId === pendingConfirm.id) cancelRename();
+	}
 
 	return (
 		<section className="mt-10 max-w-3xl">
@@ -525,34 +562,14 @@ function QuestionBankPanel({
 						type="button"
 						className="border-theme px-3 py-1.5 text-sm disabled:opacity-40"
 						disabled={!entries.length}
-						onClick={() => {
-							if (
-								window.confirm("Delete every saved question set from the bank?")
-							) {
-								clearBank();
-								setSelected(new Set());
-								closeView();
-								cancelRename();
-							}
-						}}
+						onClick={() => setPendingConfirm({ kind: "clear-bank" })}
 					>
 						Clear bank
 					</button>
 					<button
 						type="button"
 						className="border-theme px-3 py-1.5 text-sm"
-						onClick={() => {
-							if (
-								window.confirm(
-									"Clear all local data for this website? This cannot be undone.",
-								)
-							) {
-								clearAllSiteData();
-								setSelected(new Set());
-								closeView();
-								cancelRename();
-							}
-						}}
+						onClick={() => setPendingConfirm({ kind: "clear-site" })}
 					>
 						Clear all site data
 					</button>
@@ -661,16 +678,13 @@ function QuestionBankPanel({
 													<button
 														type="button"
 														className="border-theme px-3 py-1.5 text-sm"
-														onClick={() => {
-															remove(entry.id);
-															setSelected((prev) => {
-																const next = new Set(prev);
-																next.delete(entry.id);
-																return next;
-															});
-															if (viewingId === entry.id) closeView();
-															if (renamingId === entry.id) cancelRename();
-														}}
+														onClick={() =>
+															setPendingConfirm({
+																kind: "delete",
+																id: entry.id,
+																label: entryLabel(entry),
+															})
+														}
 													>
 														Delete
 													</button>
@@ -705,133 +719,148 @@ function QuestionBankPanel({
 				</>
 			)}
 
-			{viewingEntry ? (
-				<div
-					className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center"
-					role="presentation"
-					onClick={closeView}
-				>
-					<div
-						role="dialog"
-						aria-modal="true"
-						aria-labelledby="view-questions-title"
-						className="flex max-h-[min(90vh,40rem)] w-full max-w-2xl flex-col border-theme bg-bg"
-						onClick={(event) => event.stopPropagation()}
-					>
-						<div className="flex flex-wrap items-start justify-between gap-3 border-theme-b p-4">
-							<div className="min-w-0 flex-1">
-								{isRenamingView ? (
-									<label className="block text-sm">
-										<span className="sr-only">Rename set</span>
-										<input
-											type="text"
-											id="view-questions-title"
-											className="w-full max-w-md border-theme px-2 py-1.5 text-lg font-semibold"
-											value={renameValue}
-											onChange={(e) => setRenameValue(e.target.value)}
-											onKeyDown={(e) => {
-												if (e.key === "Enter") {
-													e.preventDefault();
-													commitRename();
-												}
-												if (e.key === "Escape") {
-													e.preventDefault();
-													e.stopPropagation();
-													cancelRename();
-												}
-											}}
-											placeholder={formatUploadedAt(viewingEntry.uploadedAt)}
-											autoFocus
-										/>
-									</label>
-								) : (
-									<h3
-										id="view-questions-title"
-										className="text-lg font-semibold"
-									>
-										{entryLabel(viewingEntry)}
-									</h3>
-								)}
-								<p className="mt-1 text-sm">
-									{viewingEntry.questions.length} question
-									{viewingEntry.questions.length === 1 ? "" : "s"}
-								</p>
-							</div>
-							<div className="flex flex-wrap gap-2">
-								{isRenamingView ? (
-									<>
-										<button
-											type="button"
-											className="border-theme bg-accent px-3 py-1.5 text-sm text-accent-fg"
-											onClick={commitRename}
-										>
-											Save name
-										</button>
-										<button
-											type="button"
-											className="border-theme px-3 py-1.5 text-sm"
-											onClick={cancelRename}
-										>
-											Cancel
-										</button>
-									</>
-								) : (
-									<button
-										type="button"
-										className="border-theme px-3 py-1.5 text-sm"
-										onClick={() => beginRename(viewingEntry)}
-									>
-										Rename
-									</button>
-								)}
-								<button
-									type="button"
-									className="border-theme px-3 py-1.5 text-sm"
-									aria-pressed={showAnswers}
-									onClick={() => setShowAnswers((prev) => !prev)}
-								>
-									{showAnswers ? "Hide answers" : "Show answers"}
-								</button>
-								<button
-									type="button"
-									className="border-theme px-3 py-1.5 text-sm"
-									onClick={closeView}
-								>
-									Close
-								</button>
-							</div>
-						</div>
-						<ol className="list-decimal space-y-4 overflow-y-auto p-4 pl-9">
-							{viewingEntry.questions.map((question) => (
-								<li
-									key={`${question.q}::${String(question.ans)}`}
-									className="text-sm"
-								>
-									<p className="font-medium">{question.q}</p>
-									<ul className="mt-2 space-y-1">
-										{question.choices.map((choice) => {
-											const isAnswer =
-												showAnswers &&
-												String(choice) === String(question.ans);
-											return (
-												<li
-													key={String(choice)}
-													className={
-														isAnswer ? "font-semibold underline" : ""
-													}
+			<Dialog.Root
+				open={viewingEntry !== null}
+				onOpenChange={(open, details) => {
+					if (open) return;
+					if (isRenamingView) {
+						details.cancel();
+						cancelRename();
+						return;
+					}
+					closeView();
+				}}
+			>
+				<Dialog.Portal>
+					<Dialog.Backdrop className="fixed inset-0 z-50 bg-black/50 transition-opacity duration-150 data-starting-style:opacity-0 data-ending-style:opacity-0" />
+					<Dialog.Viewport className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center">
+						<Dialog.Popup className="flex max-h-[min(90vh,40rem)] w-full max-w-2xl flex-col border-theme bg-bg outline-none transition-[scale,opacity] duration-150 ease-out data-starting-style:scale-[0.98] data-starting-style:opacity-0 data-ending-style:scale-[0.98] data-ending-style:opacity-0">
+							{viewingEntry ? (
+								<>
+									<div className="flex flex-wrap items-start justify-between gap-3 border-theme-b p-4">
+										<div className="min-w-0 flex-1">
+											{isRenamingView ? (
+												<>
+													<Dialog.Title className="sr-only">
+														Rename {entryLabel(viewingEntry)}
+													</Dialog.Title>
+													<label className="block text-sm">
+														<span className="sr-only">Rename set</span>
+														<input
+															type="text"
+															className="w-full max-w-md border-theme px-2 py-1.5 text-lg font-semibold"
+															value={renameValue}
+															onChange={(e) =>
+																setRenameValue(e.target.value)
+															}
+															onKeyDown={(e) => {
+																if (e.key === "Enter") {
+																	e.preventDefault();
+																	commitRename();
+																}
+															}}
+															placeholder={formatUploadedAt(
+																viewingEntry.uploadedAt,
+															)}
+															autoFocus
+														/>
+													</label>
+												</>
+											) : (
+												<Dialog.Title className="text-lg font-semibold">
+													{entryLabel(viewingEntry)}
+												</Dialog.Title>
+											)}
+											<Dialog.Description className="mt-1 text-sm">
+												{viewingEntry.questions.length} question
+												{viewingEntry.questions.length === 1 ? "" : "s"}
+											</Dialog.Description>
+										</div>
+										<div className="flex flex-wrap gap-2">
+											{isRenamingView ? (
+												<>
+													<button
+														type="button"
+														className="border-theme bg-accent px-3 py-1.5 text-sm text-accent-fg"
+														onClick={commitRename}
+													>
+														Save name
+													</button>
+													<button
+														type="button"
+														className="border-theme px-3 py-1.5 text-sm"
+														onClick={cancelRename}
+													>
+														Cancel
+													</button>
+												</>
+											) : (
+												<button
+													type="button"
+													className="border-theme px-3 py-1.5 text-sm"
+													onClick={() => beginRename(viewingEntry)}
 												>
-													{String(choice)}
-													{isAnswer ? " ← answer" : ""}
-												</li>
-											);
-										})}
-									</ul>
-								</li>
-							))}
-						</ol>
-					</div>
-				</div>
-			) : null}
+													Rename
+												</button>
+											)}
+											<button
+												type="button"
+												className="border-theme px-3 py-1.5 text-sm"
+												aria-pressed={showAnswers}
+												onClick={() => setShowAnswers((prev) => !prev)}
+											>
+												{showAnswers ? "Hide answers" : "Show answers"}
+											</button>
+											<Dialog.Close className="border-theme px-3 py-1.5 text-sm">
+												Close
+											</Dialog.Close>
+										</div>
+									</div>
+									<ol className="list-decimal space-y-4 overflow-y-auto p-4 pl-9">
+										{viewingEntry.questions.map((question) => (
+											<li
+												key={`${question.q}::${String(question.ans)}`}
+												className="text-sm"
+											>
+												<p className="font-medium">{question.q}</p>
+												<ul className="mt-2 space-y-1">
+													{question.choices.map((choice) => {
+														const isAnswer =
+															showAnswers &&
+															String(choice) === String(question.ans);
+														return (
+															<li
+																key={String(choice)}
+																className={
+																	isAnswer ? "font-semibold underline" : ""
+																}
+															>
+																{String(choice)}
+																{isAnswer ? " ← answer" : ""}
+															</li>
+														);
+													})}
+												</ul>
+											</li>
+										))}
+									</ol>
+								</>
+							) : null}
+						</Dialog.Popup>
+					</Dialog.Viewport>
+				</Dialog.Portal>
+			</Dialog.Root>
+
+			<ConfirmDialog
+				open={pendingConfirm !== null}
+				onOpenChange={(open) => {
+					if (!open) setPendingConfirm(null);
+				}}
+				title={visibleConfirm?.title ?? ""}
+				description={visibleConfirm?.description ?? ""}
+				confirmLabel={visibleConfirm?.confirmLabel ?? "Confirm"}
+				onConfirm={runPendingConfirm}
+			/>
 		</section>
 	);
 }
