@@ -2,6 +2,7 @@ import { Dialog } from "@base-ui/react/dialog";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { ConfirmDialog } from "#/components/ConfirmDialog";
+import { ScrambleHover } from "#/components/ScrambleHover";
 import {
 	entryLabel,
 	formatUploadedAt,
@@ -189,7 +190,9 @@ function Home() {
 			
 			<div className="flex items-center gap-2 text-3xl">
 				<span className="font-thin text-red-600">✽</span>
-				<h1 className="font-bold">Questionaitor</h1>
+				<h1 className="font-bold">
+					<ScrambleHover text="Questionaitor" className="cursor-pointer" />
+				</h1>
 			</div>
 			<p className="mt-2 text-base">
 				Upload a list of questions as JSON (paste, click, or drag and drop).
