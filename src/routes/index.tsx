@@ -186,7 +186,11 @@ function Home() {
 
 	return (
 		<div className="w-full max-w-6xl p-8">
-			<h1 className="text-3xl font-bold">Questionaitor</h1>
+			
+			<div className="flex items-center gap-2 text-3xl">
+				<span className="font-thin text-red-600">✽</span>
+				<h1 className="font-bold">Questionaitor</h1>
+			</div>
 			<p className="mt-2 text-base">
 				Upload a list of questions as JSON (paste, click, or drag and drop).
 			</p>
