@@ -43,15 +43,13 @@ export function ThemeSwitcher() {
 				role="switch"
 				aria-checked={isDark}
 				aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-				className={`relative h-6 w-10 shrink-0 border-theme transition-colors ${
-					isDark ? "bg-accent" : "bg-bg"
-				}`}
+				className="relative h-6 w-10 shrink-0 border-theme bg-bg"
 				onClick={() => setMode(isDark ? "light" : "dark")}
 			>
 				<span
 					aria-hidden="true"
-					className={`absolute top-0.5 left-0.5 size-4 transition-transform ${
-						isDark ? "translate-x-4 bg-accent-fg" : "translate-x-0 bg-accent"
+					className={`absolute top-0.5 left-0.5 size-4 bg-fg transition-transform ${
+						isDark ? "translate-x-4" : "translate-x-0"
 					}`}
 				/>
 			</button>
