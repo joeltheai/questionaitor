@@ -92,4 +92,3 @@ export const CHATBOT_QUESTION_TEMPLATE = `[
     "ans": 4.25
   }
 ]`;
-

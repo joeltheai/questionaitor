@@ -434,6 +434,13 @@ function QuestionBankPanel({
 	const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(
 		null,
 	);
+	const renameInputRef = useRef<HTMLInputElement | null>(null);
+
+	useEffect(() => {
+		if (!renamingId) return;
+		renameInputRef.current?.focus();
+		renameInputRef.current?.select();
+	}, [renamingId]);
 
 	function beginRename(entry: (typeof entries)[number]) {
 		setRenamingId(entry.id);
@@ -604,6 +611,7 @@ function QuestionBankPanel({
 												<label className="block text-sm">
 													<span className="sr-only">Rename set</span>
 													<input
+														ref={renameInputRef}
 														type="text"
 														className="w-full max-w-md border-theme px-2 py-1.5 font-medium"
 														value={renameValue}
@@ -619,7 +627,6 @@ function QuestionBankPanel({
 															}
 														}}
 														placeholder={formatUploadedAt(entry.uploadedAt)}
-														autoFocus
 													/>
 												</label>
 											) : (
@@ -747,12 +754,11 @@ function QuestionBankPanel({
 													<label className="block text-sm">
 														<span className="sr-only">Rename set</span>
 														<input
+															ref={renameInputRef}
 															type="text"
 															className="w-full max-w-md border-theme px-2 py-1.5 text-lg font-semibold"
 															value={renameValue}
-															onChange={(e) =>
-																setRenameValue(e.target.value)
-															}
+															onChange={(e) => setRenameValue(e.target.value)}
 															onKeyDown={(e) => {
 																if (e.key === "Enter") {
 																	e.preventDefault();
@@ -762,7 +768,6 @@ function QuestionBankPanel({
 															placeholder={formatUploadedAt(
 																viewingEntry.uploadedAt,
 															)}
-															autoFocus
 														/>
 													</label>
 												</>
@@ -1061,6 +1066,8 @@ function useCountdown(
 		setSecondsLeft(durationSeconds);
 	}
 
+	// resetKey restarts the interval for per-question timers (not just durationSeconds).
+	// biome-ignore lint/correctness/useExhaustiveDependencies: resetKey intentionally restarts the timer
 	useEffect(() => {
 		const endsAt = Date.now() + durationSeconds * 1000;
 		let expired = false;

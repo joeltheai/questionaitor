@@ -93,9 +93,7 @@ export function ThemeSwitcher() {
 										aria-checked={selected}
 										tabIndex={menuOpen ? 0 : -1}
 										className={`block w-full px-3 py-1.5 text-left text-sm ${
-											selected
-												? "bg-accent text-accent-fg"
-												: "hover:opacity-70"
+											selected ? "bg-accent text-accent-fg" : "hover:opacity-70"
 										}`}
 										onClick={() => {
 											setTheme(id);
