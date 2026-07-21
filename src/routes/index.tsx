@@ -30,6 +30,9 @@ type TestConfig = {
 function Home() {
 	const [phase, setPhase] = useState<Phase>("upload");
 	const [paste, setPaste] = useState("");
+	const [pasteCount, setPasteCount] = useState<number | null>(null);
+	const [pasteError, setPasteError] = useState<string | null>(null);
+	const [pasteBlurred, setPasteBlurred] = useState(false);
 	const [questions, setQuestions] = useState<Question[] | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [dragging, setDragging] = useState(false);
@@ -38,6 +41,7 @@ function Home() {
 	const [loadMode, setLoadMode] = useState<LoadMode>("replace");
 	const [savedEntryId, setSavedEntryId] = useState<string | null>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
+	const pasteBlurOnChangeRef = useRef(false);
 	const saveToBank = useQuestionBank((s) => s.save);
 
 	function applyQuestions(
@@ -66,10 +70,31 @@ function Home() {
 		setSavedEntryId(entry?.id ?? null);
 	}
 
+	function syncPaste(text: string, opts: { blur?: boolean } = {}) {
+		setPaste(text);
+		if (!text.trim()) {
+			setPasteCount(null);
+			setPasteError(null);
+			setPasteBlurred(false);
+			return;
+		}
+		try {
+			setPasteCount(parseQuestions(text).length);
+			setPasteError(null);
+			if (opts.blur) setPasteBlurred(true);
+		} catch (err) {
+			setPasteCount(null);
+			setPasteError(
+				err instanceof Error ? err.message : "Invalid JSON.",
+			);
+			setPasteBlurred(false);
+		}
+	}
+
 	function loadFromText(text: string, mode?: LoadMode) {
 		try {
 			const parsed = parseQuestions(text);
-			setPaste(text);
+			syncPaste(text);
 			applyQuestions(parsed, { mode });
 		} catch (err) {
 			setError(
@@ -118,6 +143,10 @@ function Home() {
 		setError(null);
 		setLoadMode("replace");
 		setSavedEntryId(null);
+		setPaste("");
+		setPasteCount(null);
+		setPasteError(null);
+		setPasteBlurred(false);
 	}
 
 	if (phase === "taking" && questions && config) {
@@ -184,28 +213,72 @@ function Home() {
 					<div className="mt-8">
 						<div className="grid gap-8 lg:grid-cols-[1fr_16rem] lg:items-stretch">
 							<div className="flex flex-col">
-								<h2 className="text-xl font-semibold">Paste JSON</h2>
-								<textarea
-									className="mt-3 block w-full flex-1 border border-black p-3 font-mono text-sm"
-									value={paste}
-									onChange={(e) => setPaste(e.target.value)}
-									rows={12}
-									placeholder={`[
+								<div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+									<h2 className="text-xl font-semibold">Paste JSON</h2>
+									{pasteError ? (
+										<p className="text-sm font-medium text-red-600">
+											{pasteError}
+										</p>
+									) : null}
+								</div>
+								<div className="relative mt-3 flex min-h-0 flex-1 flex-col">
+									<textarea
+										className={`block w-full flex-1 border border-black p-3 font-mono text-sm ${
+											pasteBlurred ? "select-none blur-sm" : ""
+										} ${pasteError ? "border-red-600" : ""}`}
+										value={paste}
+										onChange={(e) => {
+											const shouldBlur = pasteBlurOnChangeRef.current;
+											pasteBlurOnChangeRef.current = false;
+											syncPaste(e.target.value, { blur: shouldBlur });
+										}}
+										onPaste={() => {
+											pasteBlurOnChangeRef.current = true;
+										}}
+										rows={12}
+										readOnly={pasteBlurred}
+										aria-invalid={pasteError !== null}
+										aria-label={
+											pasteBlurred && pasteCount !== null
+												? `${pasteCount} questions pasted`
+												: "Paste JSON"
+										}
+										placeholder={`[
   {
     "q": "Your question?",
     "choices": [4.25, 5, 3.67, 2],
     "ans": 4.25
   }
 ]`}
-								/>
+									/>
+									{pasteBlurred && pasteCount !== null ? (
+										<div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-3 p-4 text-center">
+											<p className="text-lg font-semibold">
+												{pasteCount} question
+												{pasteCount === 1 ? "" : "s"} pasted
+											</p>
+											<button
+												type="button"
+												className="pointer-events-auto border border-black bg-white px-3 py-1.5 text-sm"
+												onClick={() => {
+													setPaste("");
+													setPasteCount(null);
+													setPasteError(null);
+													setPasteBlurred(false);
+												}}
+											>
+												Clear
+											</button>
+										</div>
+									) : null}
+								</div>
 								<button
 									type="button"
-									className="mt-3 border border-black px-3 py-1.5 text-sm lg:hidden"
+									className="mt-3 border border-black bg-black px-3 py-1.5 text-sm text-white disabled:opacity-40 lg:hidden"
+									disabled={pasteCount === null}
 									onClick={() => loadFromText(paste)}
 								>
-									{loadMode === "append"
-										? "Add from paste"
-										: "Load from paste"}
+									Next
 								</button>
 							</div>
 
@@ -261,10 +334,11 @@ function Home() {
 						</div>
 						<button
 							type="button"
-							className="mt-3 hidden border border-black px-3 py-1.5 text-sm lg:inline-block"
+							className="mt-3 hidden border border-black bg-black px-3 py-1.5 text-sm text-white disabled:opacity-40 lg:inline-block"
+							disabled={pasteCount === null}
 							onClick={() => loadFromText(paste)}
 						>
-							{loadMode === "append" ? "Add from paste" : "Load from paste"}
+							Next
 						</button>
 					</div>
 
