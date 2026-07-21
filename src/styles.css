@@ -68,11 +68,11 @@
 }
 
 [data-theme="terminal"][data-mode="dark"] {
-	--theme-bg: #0b120b;
-	--theme-fg: #33ff66;
+	--theme-bg:rgb(26, 28, 26);
+	--theme-fg:rgb(135, 177, 146);
 	--theme-muted: rgb(51 255 102 / 0.7);
-	--theme-border: #33ff66;
-	--theme-accent: #33ff66;
+	--theme-border: rgb(172, 225, 185);
+	--theme-accent: rgb(157, 192, 166);
 	--theme-accent-fg: #0b120b;
 	--theme-danger: #ff5555;
 	--theme-success: #33ff66;
@@ -98,6 +98,11 @@ body {
 	background-color: var(--theme-bg);
 	color: var(--theme-fg);
 	font-family: var(--theme-font-sans);
+}
+
+/* Brand mark: always use minimal theme sans so ✽ stays consistent across themes. */
+.logo-mark {
+	font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 /* Themed border: width/style/radius come from the active theme. */

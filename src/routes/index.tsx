@@ -194,7 +194,7 @@ function Home() {
 		<div className="w-full max-w-6xl p-8">
 			
 			<div className="flex items-center gap-2 text-3xl">
-				<span className="font-thin text-red-600">✽</span>
+				<span className="logo-mark font-thin text-red-600 text-4xl">✽</span>
 				<h1 className="font-bold">
 					<ScrambleHover text="Questionaitor" className="cursor-pointer" />
 				</h1>
