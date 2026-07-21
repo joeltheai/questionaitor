@@ -23,9 +23,18 @@ type LoadMode = "replace" | "append";
 
 type TestConfig = {
 	mode: TimerMode;
-	/** Full-test duration in seconds (already multiplied if per-question). */
+	/** Active countdown length in seconds (whole test, or each question). */
 	durationSeconds: number;
 };
+
+function shuffleQuestions<T>(items: T[]): T[] {
+	const next = [...items];
+	for (let i = next.length - 1; i > 0; i--) {
+		const j = Math.floor(Math.random() * (i + 1));
+		[next[i], next[j]] = [next[j], next[i]];
+	}
+	return next;
+}
 
 function Home() {
 	const [phase, setPhase] = useState<Phase>("upload");
@@ -125,8 +134,10 @@ function Home() {
 
 	function startTest(nextConfig: TestConfig) {
 		if (!questions?.length) return;
+		const shuffled = shuffleQuestions(questions);
+		setQuestions(shuffled);
 		setConfig(nextConfig);
-		setAnswers(Array.from({ length: questions.length }, () => null));
+		setAnswers(Array.from({ length: shuffled.length }, () => null));
 		setPhase("taking");
 	}
 
@@ -639,7 +650,7 @@ function QuizSetup({
 	const [saveName, setSaveName] = useState("");
 
 	const inputSeconds = minutes * 60 + seconds;
-	const totalSeconds =
+	const estimatedTotalSeconds =
 		mode === "perQuestion" ? inputSeconds * questionCount : inputSeconds;
 
 	function handleStart() {
@@ -648,9 +659,7 @@ function QuizSetup({
 			return;
 		}
 		setSetupError(null);
-		// Always store the full-test duration. Per-question mode only
-		// multiplies the input by question count to compute that total.
-		onStart({ mode, durationSeconds: totalSeconds });
+		onStart({ mode, durationSeconds: inputSeconds });
 	}
 
 	return (
@@ -726,9 +735,8 @@ function QuizSetup({
 					<span>
 						<span className="font-medium">Time per question</span>
 						<span className="block text-sm">
-							Set a duration per question; total time is that times the number
-							of questions. You can spend more or less on any question — the
-							timer only ends the whole test when it hits zero.
+							Each question gets its own countdown. When time runs out, the
+							screen flashes and you move to the next question.
 						</span>
 					</span>
 				</label>
@@ -769,8 +777,8 @@ function QuizSetup({
 				</div>
 				{mode === "perQuestion" && inputSeconds > 0 ? (
 					<p className="mt-3 text-sm">
-						Total time: {formatTime(totalSeconds)} ({questionCount} ×{" "}
-						{formatTime(inputSeconds)})
+						Estimated total: {formatTime(estimatedTotalSeconds)} (
+						{questionCount} × {formatTime(inputSeconds)})
 					</p>
 				) : null}
 			</div>
@@ -799,13 +807,18 @@ function QuizSetup({
 	);
 }
 
-function useCountdown(durationSeconds: number, onExpire: () => void) {
+function useCountdown(
+	durationSeconds: number,
+	onExpire: () => void,
+	resetKey: number | string = 0,
+) {
 	const [secondsLeft, setSecondsLeft] = useState(durationSeconds);
 	const onExpireEvent = useEffectEvent(onExpire);
 
-	const [prevDuration, setPrevDuration] = useState(durationSeconds);
-	if (durationSeconds !== prevDuration) {
-		setPrevDuration(durationSeconds);
+	const signature = `${durationSeconds}:${resetKey}`;
+	const [prevSignature, setPrevSignature] = useState(signature);
+	if (signature !== prevSignature) {
+		setPrevSignature(signature);
 		setSecondsLeft(durationSeconds);
 	}
 
@@ -827,7 +840,7 @@ function useCountdown(durationSeconds: number, onExpire: () => void) {
 			window.clearInterval(id);
 		};
 		// onExpireEvent is an Effect Event — stable and intentionally omitted.
-	}, [durationSeconds]);
+	}, [durationSeconds, resetKey]);
 
 	return secondsLeft;
 }
@@ -845,15 +858,51 @@ function QuizTaking({
 }) {
 	const [index, setIndex] = useState(0);
 	const [answers, setAnswers] = useState(initialAnswers);
+	const [flashing, setFlashing] = useState(false);
+	const answersRef = useRef(answers);
+	const flashTimeoutRef = useRef<number | null>(null);
+	answersRef.current = answers;
 
-	const secondsLeft = useCountdown(config.durationSeconds, () => {
-		onFinish(answers);
-	});
+	useEffect(() => {
+		return () => {
+			if (flashTimeoutRef.current !== null) {
+				window.clearTimeout(flashTimeoutRef.current);
+			}
+		};
+	}, []);
+
+	const perQuestion = config.mode === "perQuestion";
+	const secondsLeft = useCountdown(
+		config.durationSeconds,
+		() => {
+			if (!perQuestion) {
+				onFinish(answersRef.current);
+				return;
+			}
+			setFlashing(true);
+			if (flashTimeoutRef.current !== null) {
+				window.clearTimeout(flashTimeoutRef.current);
+			}
+			flashTimeoutRef.current = window.setTimeout(() => {
+				flashTimeoutRef.current = null;
+				setFlashing(false);
+				setIndex((i) => {
+					if (i >= questions.length - 1) {
+						onFinish(answersRef.current);
+						return i;
+					}
+					return i + 1;
+				});
+			}, 550);
+		},
+		perQuestion ? index : 0,
+	);
 
 	const current = questions[index];
 	const selected = answers[index];
 
 	function selectChoice(choice: string | number) {
+		if (flashing) return;
 		setAnswers((prev) => {
 			const next = [...prev];
 			next[index] = choice;
@@ -862,6 +911,7 @@ function QuizTaking({
 	}
 
 	function goNext() {
+		if (flashing) return;
 		if (index >= questions.length - 1) {
 			onFinish(answers);
 			return;
@@ -870,7 +920,7 @@ function QuizTaking({
 	}
 
 	function goPrev() {
-		if (index <= 0) return;
+		if (flashing || index <= 0) return;
 		setIndex((i) => i - 1);
 	}
 
@@ -878,10 +928,16 @@ function QuizTaking({
 
 	return (
 		<div className="min-h-screen">
+			{flashing ? (
+				<div className="time-up-flash" aria-hidden="true" />
+			) : null}
 			<header className="sticky top-0 z-10 border-b border-black bg-white px-4 py-3">
 				<div className="mx-auto flex max-w-3xl items-center justify-between gap-4">
 					<div className="text-sm">
 						Question {index + 1} of {questions.length}
+						{perQuestion ? (
+							<span className="ml-2 text-sm opacity-70">· per question</span>
+						) : null}
 					</div>
 					<p
 						role="timer"
@@ -907,7 +963,7 @@ function QuizTaking({
 									key={String(choice)}
 									className={`flex cursor-pointer items-center gap-3 border border-black px-4 py-3 text-base ${
 										isSelected ? "bg-black text-white" : ""
-									}`}
+									} ${flashing ? "pointer-events-none" : ""}`}
 								>
 									<input
 										type="radio"
@@ -915,6 +971,7 @@ function QuizTaking({
 										className="sr-only"
 										checked={isSelected}
 										onChange={() => selectChoice(choice)}
+										disabled={flashing}
 									/>
 									<span>{String(choice)}</span>
 								</label>
@@ -928,21 +985,23 @@ function QuizTaking({
 						type="button"
 						className="border border-black px-3 py-1.5 text-sm disabled:opacity-40"
 						onClick={goPrev}
-						disabled={index === 0}
+						disabled={flashing || index === 0}
 					>
 						Previous
 					</button>
 					<button
 						type="button"
-						className="border border-black bg-black px-3 py-1.5 text-sm text-white"
+						className="border border-black bg-black px-3 py-1.5 text-sm text-white disabled:opacity-40"
 						onClick={goNext}
+						disabled={flashing}
 					>
 						{index >= questions.length - 1 ? "Submit test" : "Next"}
 					</button>
 					<button
 						type="button"
-						className="border border-black px-3 py-1.5 text-sm"
+						className="border border-black px-3 py-1.5 text-sm disabled:opacity-40"
 						onClick={() => onFinish(answers)}
+						disabled={flashing}
 					>
 						End early
 					</button>

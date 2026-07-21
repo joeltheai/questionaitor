@@ -15,3 +15,29 @@ body {
   margin: 0;
 }
 
+@keyframes time-up-flash {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  15%,
+  45%,
+  75% {
+    opacity: 1;
+    background-color: #000;
+  }
+  30%,
+  60% {
+    opacity: 1;
+    background-color: #fff;
+  }
+}
+
+.time-up-flash {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  animation: time-up-flash 0.55s ease-in-out;
+}
+
