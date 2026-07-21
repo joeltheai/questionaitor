@@ -883,7 +883,9 @@ function QuizResults({
 						return (
 							<li
 								key={`${question.q}::${String(question.ans)}`}
-								className="text-base"
+								className={`border-2 p-4 text-base ${
+									correct ? "border-green-600" : "border-red-600"
+								}`}
 							>
 								<div className="font-medium">{question.q}</div>
 								<p className="mt-2 text-sm font-semibold">
