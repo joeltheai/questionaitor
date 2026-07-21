@@ -1,6 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import {
+	entryLabel,
+	formatUploadedAt,
+	mergeQuestions,
+	useQuestionBank,
+} from "#/lib/question-bank";
+import {
 	answersMatch,
 	formatTime,
 	parseQuestions,
@@ -11,6 +17,8 @@ export const Route = createFileRoute("/")({ component: Home });
 
 type Phase = "upload" | "setup" | "taking" | "results";
 type TimerMode = "total" | "perQuestion";
+/** How new questions combine with an already-loaded set. */
+type LoadMode = "replace" | "append";
 
 type TestConfig = {
 	mode: TimerMode;
@@ -26,23 +34,50 @@ function Home() {
 	const [dragging, setDragging] = useState(false);
 	const [config, setConfig] = useState<TestConfig | null>(null);
 	const [answers, setAnswers] = useState<Array<string | number | null>>([]);
+	const [loadMode, setLoadMode] = useState<LoadMode>("replace");
+	const [savedEntryId, setSavedEntryId] = useState<string | null>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
+	const saveToBank = useQuestionBank((s) => s.save);
 
-	function loadFromText(text: string) {
+	function applyQuestions(
+		next: Question[],
+		opts: { fromBank?: boolean; mode?: LoadMode } = {},
+	) {
+		const mode = opts.mode ?? loadMode;
+		const merged =
+			mode === "append" && questions?.length
+				? mergeQuestions(questions, next)
+				: next;
+		setQuestions(merged);
+		setError(null);
+		setPhase("setup");
+		setConfig(null);
+		setAnswers([]);
+		setLoadMode("replace");
+
+		// Reusing an existing bank set as-is — no new save.
+		if (opts.fromBank && mode !== "append") {
+			setSavedEntryId("bank");
+			return;
+		}
+
+		const entry = saveToBank(merged);
+		setSavedEntryId(entry?.id ?? null);
+	}
+
+	function loadFromText(text: string, mode?: LoadMode) {
 		try {
 			const parsed = parseQuestions(text);
-			setQuestions(parsed);
-			setError(null);
 			setPaste(text);
-			setPhase("setup");
-			setConfig(null);
-			setAnswers([]);
+			applyQuestions(parsed, { mode });
 		} catch (err) {
-			setQuestions(null);
 			setError(
 				err instanceof Error ? err.message : "Failed to load questions.",
 			);
-			setPhase("upload");
+			if ((mode ?? loadMode) !== "append") {
+				setQuestions(null);
+				setPhase("upload");
+			}
 		}
 	}
 
@@ -54,8 +89,10 @@ function Home() {
 		};
 		reader.onerror = () => {
 			setError("Could not read the file.");
-			setQuestions(null);
-			setPhase("upload");
+			if (loadMode !== "append") {
+				setQuestions(null);
+				setPhase("upload");
+			}
 		};
 		reader.readAsText(file);
 	}
@@ -78,6 +115,8 @@ function Home() {
 		setConfig(null);
 		setAnswers([]);
 		setError(null);
+		setLoadMode("replace");
+		setSavedEntryId(null);
 	}
 
 	if (phase === "taking" && questions && config) {
@@ -102,6 +141,8 @@ function Home() {
 		);
 	}
 
+	const showUpload = phase === "upload" || !questions || loadMode === "append";
+
 	return (
 		<div className="p-8 max-w-3xl">
 			<h1 className="text-3xl font-bold">Questionaitor</h1>
@@ -109,8 +150,28 @@ function Home() {
 				Upload a list of questions as JSON (paste, click, or drag and drop).
 			</p>
 
-			{phase === "upload" || !questions ? (
+			{showUpload ? (
 				<>
+					{loadMode === "append" && questions?.length ? (
+						<div className="mt-6 border border-black p-4">
+							<p className="text-sm">
+								Adding to the current set ({questions.length} question
+								{questions.length === 1 ? "" : "s"}). Duplicates are skipped.
+							</p>
+							<button
+								type="button"
+								className="mt-3 border border-black px-3 py-1.5 text-sm"
+								onClick={() => {
+									setLoadMode("replace");
+									setPhase("setup");
+									setError(null);
+								}}
+							>
+								Cancel — back to setup
+							</button>
+						</div>
+					) : null}
+
 					<section className="mt-8">
 						<h2 className="text-xl font-semibold">Paste JSON</h2>
 						<textarea
@@ -131,7 +192,7 @@ function Home() {
 							className="mt-3 border border-black px-3 py-1.5 text-sm"
 							onClick={() => loadFromText(paste)}
 						>
-							Load from paste
+							{loadMode === "append" ? "Add from paste" : "Load from paste"}
 						</button>
 					</section>
 
@@ -169,7 +230,7 @@ function Home() {
 								className="mt-3 border border-black px-3 py-1.5 text-sm"
 								onClick={() => fileInputRef.current?.click()}
 							>
-								Upload file
+								{loadMode === "append" ? "Add from file" : "Upload file"}
 							</button>
 							<input
 								ref={fileInputRef}
@@ -185,17 +246,30 @@ function Home() {
 						</section>
 					</section>
 
+					<QuestionBankPanel
+						onUse={(selected) => {
+							applyQuestions(selected, { fromBank: true });
+						}}
+						appendLabel={
+							loadMode === "append" ? "Add selected to current set" : undefined
+						}
+					/>
+
 					{error ? (
 						<p className="mt-6 text-sm font-medium">Error: {error}</p>
 					) : null}
 				</>
 			) : (
 				<QuizSetup
-					questionCount={questions.length}
+					questions={questions}
+					savedEntryId={savedEntryId}
+					onSaved={(id) => setSavedEntryId(id)}
 					onStart={startTest}
-					onBack={() => {
+					onBack={resetToUpload}
+					onAddMore={() => {
+						setLoadMode("append");
 						setPhase("upload");
-						setQuestions(null);
+						setError(null);
 					}}
 				/>
 			)}
@@ -203,19 +277,246 @@ function Home() {
 	);
 }
 
+function QuestionBankPanel({
+	onUse,
+	appendLabel,
+}: {
+	onUse: (questions: Question[]) => void;
+	appendLabel?: string;
+}) {
+	const entries = useQuestionBank((s) => s.entries);
+	const remove = useQuestionBank((s) => s.remove);
+	const clearBank = useQuestionBank((s) => s.clearBank);
+	const clearAllSiteData = useQuestionBank((s) => s.clearAllSiteData);
+	const save = useQuestionBank((s) => s.save);
+	const [selected, setSelected] = useState<Set<string>>(new Set());
+	const [viewingId, setViewingId] = useState<string | null>(null);
+
+	function toggle(id: string) {
+		setSelected((prev) => {
+			const next = new Set(prev);
+			if (next.has(id)) next.delete(id);
+			else next.add(id);
+			return next;
+		});
+	}
+
+	function selectedQuestions(): Question[] {
+		const sets = entries
+			.filter((entry) => selected.has(entry.id))
+			.map((entry) => entry.questions);
+		return mergeQuestions(...sets);
+	}
+
+	function handleMix() {
+		const merged = selectedQuestions();
+		if (!merged.length) return;
+		save(merged, `Mixed · ${formatUploadedAt(new Date().toISOString())}`);
+		onUse(merged);
+		setSelected(new Set());
+	}
+
+	function handleUseSelected() {
+		const merged = selectedQuestions();
+		if (!merged.length) return;
+		onUse(merged);
+		setSelected(new Set());
+	}
+
+	return (
+		<section className="mt-10">
+			<div className="flex flex-wrap items-end justify-between gap-3">
+				<div>
+					<h2 className="text-xl font-semibold">Question bank</h2>
+					<p className="mt-1 text-sm">
+						Your past questions, stored locally so you can retake or mix them.
+					</p>
+				</div>
+				<div className="flex flex-wrap gap-2">
+					<button
+						type="button"
+						className="border border-black px-3 py-1.5 text-sm disabled:opacity-40"
+						disabled={!entries.length}
+						onClick={() => {
+							if (
+								window.confirm("Delete every saved question set from the bank?")
+							) {
+								clearBank();
+								setSelected(new Set());
+								setViewingId(null);
+							}
+						}}
+					>
+						Clear bank
+					</button>
+					<button
+						type="button"
+						className="border border-black px-3 py-1.5 text-sm"
+						onClick={() => {
+							if (
+								window.confirm(
+									"Clear all local data for this website? This cannot be undone.",
+								)
+							) {
+								clearAllSiteData();
+								setSelected(new Set());
+								setViewingId(null);
+							}
+						}}
+					>
+						Clear all site data
+					</button>
+				</div>
+			</div>
+
+			{entries.length === 0 ? (
+				<p className="mt-4 text-sm">
+					No saved sets yet. Upload or paste to save.
+				</p>
+			) : (
+				<>
+					<ul className="mt-4 space-y-3">
+						{entries.map((entry) => {
+							const checked = selected.has(entry.id);
+							const isViewing = viewingId === entry.id;
+							return (
+								<li key={entry.id} className="border border-black p-3">
+									<div className="flex flex-wrap items-start gap-3">
+										<label className="mt-0.5 flex items-start gap-2 text-sm">
+											<input
+												type="checkbox"
+												checked={checked}
+												onChange={() => toggle(entry.id)}
+											/>
+											<span className="sr-only">
+												Select {entryLabel(entry)}
+											</span>
+										</label>
+										<div className="min-w-0 flex-1">
+											<p className="font-medium">{entryLabel(entry)}</p>
+											<p className="mt-1 text-sm">
+												{formatUploadedAt(entry.uploadedAt)} ·{" "}
+												{entry.questions.length} question
+												{entry.questions.length === 1 ? "" : "s"}
+											</p>
+										</div>
+										<div className="flex flex-wrap gap-2">
+											<button
+												type="button"
+												className="border border-black px-3 py-1.5 text-sm"
+												aria-expanded={isViewing}
+												onClick={() =>
+													setViewingId(isViewing ? null : entry.id)
+												}
+											>
+												{isViewing ? "Hide" : "View"}
+											</button>
+											<button
+												type="button"
+												className="border border-black px-3 py-1.5 text-sm"
+												onClick={() => onUse(entry.questions)}
+											>
+												Use
+											</button>
+											<button
+												type="button"
+												className="border border-black px-3 py-1.5 text-sm"
+												onClick={() => {
+													remove(entry.id);
+													setSelected((prev) => {
+														const next = new Set(prev);
+														next.delete(entry.id);
+														return next;
+													});
+													if (viewingId === entry.id) setViewingId(null);
+												}}
+											>
+												Delete
+											</button>
+										</div>
+									</div>
+
+									{isViewing ? (
+										<ol className="mt-4 list-decimal space-y-4 border-t border-black pt-4 pl-5">
+											{entry.questions.map((question) => (
+												<li
+													key={`${question.q}::${String(question.ans)}`}
+													className="text-sm"
+												>
+													<p className="font-medium">{question.q}</p>
+													<ul className="mt-2 space-y-1">
+														{question.choices.map((choice) => {
+															const isAnswer =
+																String(choice) === String(question.ans);
+															return (
+																<li
+																	key={String(choice)}
+																	className={
+																		isAnswer ? "font-semibold underline" : ""
+																	}
+																>
+																	{String(choice)}
+																	{isAnswer ? " ← answer" : ""}
+																</li>
+															);
+														})}
+													</ul>
+												</li>
+											))}
+										</ol>
+									) : null}
+								</li>
+							);
+						})}
+					</ul>
+
+					<div className="mt-4 flex flex-wrap gap-2">
+						<button
+							type="button"
+							className="border border-black bg-black px-3 py-1.5 text-sm text-white disabled:opacity-40"
+							disabled={selected.size === 0}
+							onClick={handleUseSelected}
+						>
+							{appendLabel ?? "Use selected"}
+							{selected.size > 0 ? ` (${selected.size})` : ""}
+						</button>
+						<button
+							type="button"
+							className="border border-black px-3 py-1.5 text-sm disabled:opacity-40"
+							disabled={selected.size < 2}
+							onClick={handleMix}
+						>
+							Mix &amp; merge selected
+						</button>
+					</div>
+				</>
+			)}
+		</section>
+	);
+}
+
 function QuizSetup({
-	questionCount,
+	questions,
+	savedEntryId,
+	onSaved,
 	onStart,
 	onBack,
+	onAddMore,
 }: {
-	questionCount: number;
+	questions: Question[];
+	savedEntryId: string | null;
+	onSaved: (id: string) => void;
 	onStart: (config: TestConfig) => void;
 	onBack: () => void;
+	onAddMore: () => void;
 }) {
+	const questionCount = questions.length;
+	const save = useQuestionBank((s) => s.save);
 	const [mode, setMode] = useState<TimerMode>("total");
 	const [minutes, setMinutes] = useState(10);
 	const [seconds, setSeconds] = useState(0);
 	const [setupError, setSetupError] = useState<string | null>(null);
+	const [saveName, setSaveName] = useState("");
 
 	const inputSeconds = minutes * 60 + seconds;
 	const totalSeconds =
@@ -240,6 +541,42 @@ function QuizSetup({
 				how the timer works, then begin.
 			</p>
 
+			<div className="mt-4 flex flex-wrap items-end gap-3">
+				{savedEntryId ? (
+					<p className="text-sm">Saved to the question bank.</p>
+				) : (
+					<>
+						<label className="text-sm">
+							Bank label (optional)
+							<input
+								type="text"
+								className="mt-1 block w-56 border border-black px-2 py-1.5"
+								value={saveName}
+								onChange={(e) => setSaveName(e.target.value)}
+								placeholder="e.g. Midterm set A"
+							/>
+						</label>
+						<button
+							type="button"
+							className="border border-black px-3 py-1.5 text-sm"
+							onClick={() => {
+								const entry = save(questions, saveName);
+								if (entry) onSaved(entry.id);
+							}}
+						>
+							Save to bank
+						</button>
+					</>
+				)}
+				<button
+					type="button"
+					className="border border-black px-3 py-1.5 text-sm"
+					onClick={onAddMore}
+				>
+					Add more questions
+				</button>
+			</div>
+
 			<fieldset className="mt-6">
 				<legend className="text-base font-medium">Timer mode</legend>
 				<label className="mt-3 flex items-start gap-2 text-sm">
@@ -253,8 +590,8 @@ function QuizSetup({
 					<span>
 						<span className="font-medium">Total time</span>
 						<span className="block text-sm">
-							Set one countdown for the whole test. When it hits zero, the
-							test ends.
+							Set one countdown for the whole test. When it hits zero, the test
+							ends.
 						</span>
 					</span>
 				</label>
