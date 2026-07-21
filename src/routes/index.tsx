@@ -14,7 +14,7 @@ type TimerMode = "total" | "perQuestion";
 
 type TestConfig = {
 	mode: TimerMode;
-	/** Duration in seconds (total, or per question). */
+	/** Full-test duration in seconds (already multiplied if per-question). */
 	durationSeconds: number;
 };
 
@@ -217,14 +217,19 @@ function QuizSetup({
 	const [seconds, setSeconds] = useState(0);
 	const [setupError, setSetupError] = useState<string | null>(null);
 
+	const inputSeconds = minutes * 60 + seconds;
+	const totalSeconds =
+		mode === "perQuestion" ? inputSeconds * questionCount : inputSeconds;
+
 	function handleStart() {
-		const durationSeconds = minutes * 60 + seconds;
-		if (durationSeconds <= 0) {
+		if (inputSeconds <= 0) {
 			setSetupError("Set a timer greater than zero.");
 			return;
 		}
 		setSetupError(null);
-		onStart({ mode, durationSeconds });
+		// Always store the full-test duration. Per-question mode only
+		// multiplies the input by question count to compute that total.
+		onStart({ mode, durationSeconds: totalSeconds });
 	}
 
 	return (
@@ -248,8 +253,8 @@ function QuizSetup({
 					<span>
 						<span className="font-medium">Total time</span>
 						<span className="block text-sm">
-							One countdown for the whole test. When it hits zero, the test
-							ends.
+							Set one countdown for the whole test. When it hits zero, the
+							test ends.
 						</span>
 					</span>
 				</label>
@@ -264,8 +269,9 @@ function QuizSetup({
 					<span>
 						<span className="font-medium">Time per question</span>
 						<span className="block text-sm">
-							Countdown resets on each question. When it hits zero, you move to
-							the next question.
+							Set a duration per question; total time is that times the number
+							of questions. You can spend more or less on any question — the
+							timer only ends the whole test when it hits zero.
 						</span>
 					</span>
 				</label>
@@ -304,6 +310,12 @@ function QuizSetup({
 						/>
 					</label>
 				</div>
+				{mode === "perQuestion" && inputSeconds > 0 ? (
+					<p className="mt-3 text-sm">
+						Total time: {formatTime(totalSeconds)} ({questionCount} ×{" "}
+						{formatTime(inputSeconds)})
+					</p>
+				) : null}
 			</div>
 
 			{setupError ? (
@@ -330,35 +342,30 @@ function QuizSetup({
 	);
 }
 
-function useCountdown(
-	resetKey: string | number,
-	durationSeconds: number,
-	onExpire: () => void,
-) {
+function useCountdown(durationSeconds: number, onExpire: () => void) {
 	const [secondsLeft, setSecondsLeft] = useState(durationSeconds);
+	const onExpireEvent = useEffectEvent(onExpire);
 
 	useEffect(() => {
-		let cancelled = false;
-		// Intentionally depend on resetKey so changing question (or mode) restarts.
-		void resetKey;
-		let left = durationSeconds;
-		setSecondsLeft(left);
+		const endsAt = Date.now() + durationSeconds * 1000;
+		setSecondsLeft(durationSeconds);
+		let expired = false;
 
 		const id = window.setInterval(() => {
-			left -= 1;
-			if (cancelled) return;
+			const left = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000));
 			setSecondsLeft(left);
-			if (left <= 0) {
+			if (left <= 0 && !expired) {
+				expired = true;
 				window.clearInterval(id);
-				onExpire();
+				onExpireEvent();
 			}
-		}, 1000);
+		}, 250);
 
 		return () => {
-			cancelled = true;
 			window.clearInterval(id);
 		};
-	}, [resetKey, durationSeconds, onExpire]);
+		// onExpireEvent is an Effect Event — stable and intentionally omitted.
+	}, [durationSeconds]);
 
 	return secondsLeft;
 }
@@ -379,30 +386,9 @@ function QuizTaking({
 	const answersRef = useRef(answers);
 	answersRef.current = answers;
 
-	const onTimeUp = useEffectEvent(() => {
-		if (config.mode === "total") {
-			onFinish(answersRef.current);
-			return;
-		}
-
-		// Per-question: advance, or finish on the last question.
-		setIndex((i) => {
-			if (i >= questions.length - 1) {
-				onFinish(answersRef.current);
-				return i;
-			}
-			return i + 1;
-		});
+	const secondsLeft = useCountdown(config.durationSeconds, () => {
+		onFinish(answersRef.current);
 	});
-
-	// Total time: stable key so navigating questions does not reset the clock.
-	// Per question: key includes index so each question gets a fresh countdown.
-	const timerResetKey = config.mode === "perQuestion" ? `q-${index}` : "total";
-	const secondsLeft = useCountdown(
-		timerResetKey,
-		config.durationSeconds,
-		onTimeUp,
-	);
 
 	const current = questions[index];
 	const selected = answers[index];
@@ -436,9 +422,6 @@ function QuizTaking({
 				<div className="mx-auto flex max-w-3xl items-center justify-between gap-4">
 					<div className="text-sm">
 						Question {index + 1} of {questions.length}
-						<span className="ml-2">
-							({config.mode === "total" ? "total time" : "per question"})
-						</span>
 					</div>
 					<p
 						role="timer"
