@@ -4,6 +4,9 @@ A timed multiple-choice quiz app. Paste or upload questions as JSON, set a timer
 
 # Getting Started
 
+This is a tanstack router application.
+See the [Tanstack Router documentation](https://tanstack.com/router/latest) for more information.
+
 To run this application:
 
 ```bash
