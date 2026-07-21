@@ -145,7 +145,7 @@ function Home() {
 	const showUpload = phase === "upload" || !questions || loadMode === "append";
 
 	return (
-		<div className="p-8 max-w-3xl">
+		<div className="w-full max-w-6xl p-8">
 			<h1 className="text-3xl font-bold">Questionaitor</h1>
 			<p className="mt-2 text-base">
 				Upload a list of questions as JSON (paste, click, or drag and drop).
@@ -181,79 +181,92 @@ function Home() {
 						<CopyTemplateButton />
 					</section>
 
-					<section className="mt-8">
-						<h2 className="text-xl font-semibold">Paste JSON</h2>
-						<textarea
-							className="mt-3 block w-full border border-black p-3 font-mono text-sm"
-							value={paste}
-							onChange={(e) => setPaste(e.target.value)}
-							rows={12}
-							placeholder={`[
+					<div className="mt-8">
+						<div className="grid gap-8 lg:grid-cols-[1fr_16rem] lg:items-stretch">
+							<div className="flex flex-col">
+								<h2 className="text-xl font-semibold">Paste JSON</h2>
+								<textarea
+									className="mt-3 block w-full flex-1 border border-black p-3 font-mono text-sm"
+									value={paste}
+									onChange={(e) => setPaste(e.target.value)}
+									rows={12}
+									placeholder={`[
   {
     "q": "Your question?",
     "choices": [4.25, 5, 3.67, 2],
     "ans": 4.25
   }
 ]`}
-						/>
+								/>
+								<button
+									type="button"
+									className="mt-3 border border-black px-3 py-1.5 text-sm lg:hidden"
+									onClick={() => loadFromText(paste)}
+								>
+									{loadMode === "append"
+										? "Add from paste"
+										: "Load from paste"}
+								</button>
+							</div>
+
+							<div className="flex flex-col">
+								<h2 className="text-xl font-semibold">Upload file</h2>
+								<section
+									aria-label="File drop zone"
+									className={`mt-3 flex flex-1 flex-col justify-center border border-black p-4 ${dragging ? "border-2" : ""}`}
+									onDragEnter={(e) => {
+										e.preventDefault();
+										setDragging(true);
+									}}
+									onDragOver={(e) => {
+										e.preventDefault();
+										setDragging(true);
+									}}
+									onDragLeave={(e) => {
+										e.preventDefault();
+										setDragging(false);
+									}}
+									onDrop={(e) => {
+										e.preventDefault();
+										setDragging(false);
+										const file = e.dataTransfer.files[0];
+										if (file) handleFile(file);
+									}}
+								>
+									<p className="text-sm">
+										{dragging
+											? "Drop the file here…"
+											: "Drop a .json file here, or upload below."}
+									</p>
+									<button
+										type="button"
+										className="mt-3 border border-black px-3 py-1.5 text-sm"
+										onClick={() => fileInputRef.current?.click()}
+									>
+										{loadMode === "append" ? "Add from file" : "Upload file"}
+									</button>
+									<input
+										ref={fileInputRef}
+										type="file"
+										accept=".json,application/json,text/plain"
+										className="hidden"
+										onChange={(e) => {
+											const file = e.target.files?.[0];
+											if (file) handleFile(file);
+											e.target.value = "";
+										}}
+									/>
+								</section>
+							</div>
+						</div>
 						<button
 							type="button"
-							className="mt-3 border border-black px-3 py-1.5 text-sm"
+							className="mt-3 hidden border border-black px-3 py-1.5 text-sm lg:inline-block"
 							onClick={() => loadFromText(paste)}
 						>
 							{loadMode === "append" ? "Add from paste" : "Load from paste"}
 						</button>
-					</section>
-
-					<section className="mt-8">
-						<h2 className="text-xl font-semibold">Upload file</h2>
-						<section
-							aria-label="File drop zone"
-							className={`mt-3 border border-black p-6 ${dragging ? "border-2" : ""}`}
-							onDragEnter={(e) => {
-								e.preventDefault();
-								setDragging(true);
-							}}
-							onDragOver={(e) => {
-								e.preventDefault();
-								setDragging(true);
-							}}
-							onDragLeave={(e) => {
-								e.preventDefault();
-								setDragging(false);
-							}}
-							onDrop={(e) => {
-								e.preventDefault();
-								setDragging(false);
-								const file = e.dataTransfer.files[0];
-								if (file) handleFile(file);
-							}}
-						>
-							<p className="text-sm">
-								{dragging
-									? "Drop the file here…"
-									: "Drag and drop a .json file here, or use the button below."}
-							</p>
-							<button
-								type="button"
-								className="mt-3 border border-black px-3 py-1.5 text-sm"
-								onClick={() => fileInputRef.current?.click()}
-							>
-								{loadMode === "append" ? "Add from file" : "Upload file"}
-							</button>
-							<input
-								ref={fileInputRef}
-								type="file"
-								accept=".json,application/json,text/plain"
-								className="hidden"
-								onChange={(e) => {
-									const file = e.target.files?.[0];
-									if (file) handleFile(file);
-									e.target.value = "";
-								}}
-							/>
-						</section>
-					</section>
+					</div>
 
 					<QuestionBankPanel
 						onUse={(selected) => {
@@ -357,7 +370,7 @@ function QuestionBankPanel({
 	}
 
 	return (
-		<section className="mt-10">
+		<section className="mt-10 max-w-3xl">
 			<div className="flex flex-wrap items-end justify-between gap-3">
 				<div>
 					<h2 className="text-xl font-semibold">Question bank</h2>
