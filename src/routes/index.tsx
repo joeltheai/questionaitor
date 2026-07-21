@@ -421,6 +421,7 @@ function QuestionBankPanel({
 	const save = useQuestionBank((s) => s.save);
 	const [selected, setSelected] = useState<Set<string>>(new Set());
 	const [viewingId, setViewingId] = useState<string | null>(null);
+	const [showAnswers, setShowAnswers] = useState(false);
 	const [renamingId, setRenamingId] = useState<string | null>(null);
 	const [renameValue, setRenameValue] = useState("");
 
@@ -472,6 +473,44 @@ function QuestionBankPanel({
 		setSelected(new Set());
 	}
 
+	function closeView() {
+		setViewingId(null);
+		setShowAnswers(false);
+		if (renamingId === viewingId) cancelRename();
+	}
+
+	const closeViewEvent = useEffectEvent(closeView);
+	const cancelRenameEvent = useEffectEvent(cancelRename);
+
+	const viewingEntry = viewingId
+		? (entries.find((entry) => entry.id === viewingId) ?? null)
+		: null;
+	const isRenamingView = Boolean(
+		viewingEntry && renamingId === viewingEntry.id,
+	);
+
+	useEffect(() => {
+		if (!viewingEntry) return;
+
+		function onKeyDown(event: KeyboardEvent) {
+			if (event.key !== "Escape") return;
+			if (isRenamingView) {
+				event.preventDefault();
+				cancelRenameEvent();
+				return;
+			}
+			closeViewEvent();
+		}
+
+		const previousOverflow = document.body.style.overflow;
+		document.body.style.overflow = "hidden";
+		window.addEventListener("keydown", onKeyDown);
+		return () => {
+			document.body.style.overflow = previousOverflow;
+			window.removeEventListener("keydown", onKeyDown);
+		};
+	}, [viewingEntry, isRenamingView]);
+
 	return (
 		<section className="mt-10 max-w-3xl">
 			<div className="flex flex-wrap items-end justify-between gap-3">
@@ -492,7 +531,7 @@ function QuestionBankPanel({
 							) {
 								clearBank();
 								setSelected(new Set());
-								setViewingId(null);
+								closeView();
 								cancelRename();
 							}
 						}}
@@ -510,7 +549,7 @@ function QuestionBankPanel({
 							) {
 								clearAllSiteData();
 								setSelected(new Set());
-								setViewingId(null);
+								closeView();
 								cancelRename();
 							}
 						}}
@@ -529,7 +568,6 @@ function QuestionBankPanel({
 					<ul className="mt-4 space-y-3">
 						{entries.map((entry) => {
 							const checked = selected.has(entry.id);
-							const isViewing = viewingId === entry.id;
 							const isRenaming = renamingId === entry.id;
 							return (
 								<li key={entry.id} className="border-theme p-3">
@@ -606,12 +644,12 @@ function QuestionBankPanel({
 													<button
 														type="button"
 														className="border-theme px-3 py-1.5 text-sm"
-														aria-expanded={isViewing}
-														onClick={() =>
-															setViewingId(isViewing ? null : entry.id)
-														}
+														onClick={() => {
+															setViewingId(entry.id);
+															setShowAnswers(false);
+														}}
 													>
-														{isViewing ? "Hide" : "View"}
+														View
 													</button>
 													<button
 														type="button"
@@ -630,7 +668,7 @@ function QuestionBankPanel({
 																next.delete(entry.id);
 																return next;
 															});
-															if (viewingId === entry.id) setViewingId(null);
+															if (viewingId === entry.id) closeView();
 															if (renamingId === entry.id) cancelRename();
 														}}
 													>
@@ -640,36 +678,6 @@ function QuestionBankPanel({
 											)}
 										</div>
 									</div>
-
-									{isViewing ? (
-										<ol className="mt-4 list-decimal space-y-4 border-theme-t pt-4 pl-5">
-											{entry.questions.map((question) => (
-												<li
-													key={`${question.q}::${String(question.ans)}`}
-													className="text-sm"
-												>
-													<p className="font-medium">{question.q}</p>
-													<ul className="mt-2 space-y-1">
-														{question.choices.map((choice) => {
-															const isAnswer =
-																String(choice) === String(question.ans);
-															return (
-																<li
-																	key={String(choice)}
-																	className={
-																		isAnswer ? "font-semibold underline" : ""
-																	}
-																>
-																	{String(choice)}
-																	{isAnswer ? " ← answer" : ""}
-																</li>
-															);
-														})}
-													</ul>
-												</li>
-											))}
-										</ol>
-									) : null}
 								</li>
 							);
 						})}
@@ -696,6 +704,134 @@ function QuestionBankPanel({
 					</div>
 				</>
 			)}
+
+			{viewingEntry ? (
+				<div
+					className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center"
+					role="presentation"
+					onClick={closeView}
+				>
+					<div
+						role="dialog"
+						aria-modal="true"
+						aria-labelledby="view-questions-title"
+						className="flex max-h-[min(90vh,40rem)] w-full max-w-2xl flex-col border-theme bg-bg"
+						onClick={(event) => event.stopPropagation()}
+					>
+						<div className="flex flex-wrap items-start justify-between gap-3 border-theme-b p-4">
+							<div className="min-w-0 flex-1">
+								{isRenamingView ? (
+									<label className="block text-sm">
+										<span className="sr-only">Rename set</span>
+										<input
+											type="text"
+											id="view-questions-title"
+											className="w-full max-w-md border-theme px-2 py-1.5 text-lg font-semibold"
+											value={renameValue}
+											onChange={(e) => setRenameValue(e.target.value)}
+											onKeyDown={(e) => {
+												if (e.key === "Enter") {
+													e.preventDefault();
+													commitRename();
+												}
+												if (e.key === "Escape") {
+													e.preventDefault();
+													e.stopPropagation();
+													cancelRename();
+												}
+											}}
+											placeholder={formatUploadedAt(viewingEntry.uploadedAt)}
+											autoFocus
+										/>
+									</label>
+								) : (
+									<h3
+										id="view-questions-title"
+										className="text-lg font-semibold"
+									>
+										{entryLabel(viewingEntry)}
+									</h3>
+								)}
+								<p className="mt-1 text-sm">
+									{viewingEntry.questions.length} question
+									{viewingEntry.questions.length === 1 ? "" : "s"}
+								</p>
+							</div>
+							<div className="flex flex-wrap gap-2">
+								{isRenamingView ? (
+									<>
+										<button
+											type="button"
+											className="border-theme bg-accent px-3 py-1.5 text-sm text-accent-fg"
+											onClick={commitRename}
+										>
+											Save name
+										</button>
+										<button
+											type="button"
+											className="border-theme px-3 py-1.5 text-sm"
+											onClick={cancelRename}
+										>
+											Cancel
+										</button>
+									</>
+								) : (
+									<button
+										type="button"
+										className="border-theme px-3 py-1.5 text-sm"
+										onClick={() => beginRename(viewingEntry)}
+									>
+										Rename
+									</button>
+								)}
+								<button
+									type="button"
+									className="border-theme px-3 py-1.5 text-sm"
+									aria-pressed={showAnswers}
+									onClick={() => setShowAnswers((prev) => !prev)}
+								>
+									{showAnswers ? "Hide answers" : "Show answers"}
+								</button>
+								<button
+									type="button"
+									className="border-theme px-3 py-1.5 text-sm"
+									onClick={closeView}
+								>
+									Close
+								</button>
+							</div>
+						</div>
+						<ol className="list-decimal space-y-4 overflow-y-auto p-4 pl-9">
+							{viewingEntry.questions.map((question) => (
+								<li
+									key={`${question.q}::${String(question.ans)}`}
+									className="text-sm"
+								>
+									<p className="font-medium">{question.q}</p>
+									<ul className="mt-2 space-y-1">
+										{question.choices.map((choice) => {
+											const isAnswer =
+												showAnswers &&
+												String(choice) === String(question.ans);
+											return (
+												<li
+													key={String(choice)}
+													className={
+														isAnswer ? "font-semibold underline" : ""
+													}
+												>
+													{String(choice)}
+													{isAnswer ? " ← answer" : ""}
+												</li>
+											);
+										})}
+									</ul>
+								</li>
+							))}
+						</ol>
+					</div>
+				</div>
+			) : null}
 		</section>
 	);
 }
