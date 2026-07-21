@@ -14,6 +14,7 @@ export type BankEntry = {
 type QuestionBankState = {
 	entries: BankEntry[];
 	save: (questions: Question[], name?: string) => BankEntry | null;
+	rename: (id: string, name: string) => void;
 	remove: (id: string) => void;
 	clearBank: () => void;
 	/** Wipe this store and every other localStorage key for the origin. */
@@ -69,6 +70,15 @@ export const useQuestionBank = create<QuestionBankState>()(
 				};
 				set({ entries: [entry, ...get().entries] });
 				return entry;
+			},
+
+			rename: (id, name) => {
+				const trimmed = name.trim();
+				set({
+					entries: get().entries.map((entry) =>
+						entry.id === id ? { ...entry, name: trimmed } : entry,
+					),
+				});
 			},
 
 			remove: (id) => {

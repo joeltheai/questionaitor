@@ -417,11 +417,31 @@ function QuestionBankPanel({
 }) {
 	const entries = useQuestionBank((s) => s.entries);
 	const remove = useQuestionBank((s) => s.remove);
+	const rename = useQuestionBank((s) => s.rename);
 	const clearBank = useQuestionBank((s) => s.clearBank);
 	const clearAllSiteData = useQuestionBank((s) => s.clearAllSiteData);
 	const save = useQuestionBank((s) => s.save);
 	const [selected, setSelected] = useState<Set<string>>(new Set());
 	const [viewingId, setViewingId] = useState<string | null>(null);
+	const [renamingId, setRenamingId] = useState<string | null>(null);
+	const [renameValue, setRenameValue] = useState("");
+
+	function beginRename(entry: (typeof entries)[number]) {
+		setRenamingId(entry.id);
+		setRenameValue(entry.name);
+	}
+
+	function commitRename() {
+		if (!renamingId) return;
+		rename(renamingId, renameValue);
+		setRenamingId(null);
+		setRenameValue("");
+	}
+
+	function cancelRename() {
+		setRenamingId(null);
+		setRenameValue("");
+	}
 
 	function toggle(id: string) {
 		setSelected((prev) => {
@@ -475,6 +495,7 @@ function QuestionBankPanel({
 								clearBank();
 								setSelected(new Set());
 								setViewingId(null);
+								cancelRename();
 							}
 						}}
 					>
@@ -492,6 +513,7 @@ function QuestionBankPanel({
 								clearAllSiteData();
 								setSelected(new Set());
 								setViewingId(null);
+								cancelRename();
 							}
 						}}
 					>
@@ -510,6 +532,7 @@ function QuestionBankPanel({
 						{entries.map((entry) => {
 							const checked = selected.has(entry.id);
 							const isViewing = viewingId === entry.id;
+							const isRenaming = renamingId === entry.id;
 							return (
 								<li key={entry.id} className="border border-black p-3">
 									<div className="flex flex-wrap items-start gap-3">
@@ -524,7 +547,31 @@ function QuestionBankPanel({
 											</span>
 										</label>
 										<div className="min-w-0 flex-1">
-											<p className="font-medium">{entryLabel(entry)}</p>
+											{isRenaming ? (
+												<label className="block text-sm">
+													<span className="sr-only">Rename set</span>
+													<input
+														type="text"
+														className="w-full max-w-md border border-black px-2 py-1.5 font-medium"
+														value={renameValue}
+														onChange={(e) => setRenameValue(e.target.value)}
+														onKeyDown={(e) => {
+															if (e.key === "Enter") {
+																e.preventDefault();
+																commitRename();
+															}
+															if (e.key === "Escape") {
+																e.preventDefault();
+																cancelRename();
+															}
+														}}
+														placeholder={formatUploadedAt(entry.uploadedAt)}
+														autoFocus
+													/>
+												</label>
+											) : (
+												<p className="font-medium">{entryLabel(entry)}</p>
+											)}
 											<p className="mt-1 text-sm">
 												{formatUploadedAt(entry.uploadedAt)} ·{" "}
 												{entry.questions.length} question
@@ -532,38 +579,67 @@ function QuestionBankPanel({
 											</p>
 										</div>
 										<div className="flex flex-wrap gap-2">
-											<button
-												type="button"
-												className="border border-black px-3 py-1.5 text-sm"
-												aria-expanded={isViewing}
-												onClick={() =>
-													setViewingId(isViewing ? null : entry.id)
-												}
-											>
-												{isViewing ? "Hide" : "View"}
-											</button>
-											<button
-												type="button"
-												className="border border-black px-3 py-1.5 text-sm"
-												onClick={() => onUse(entry.questions)}
-											>
-												Use
-											</button>
-											<button
-												type="button"
-												className="border border-black px-3 py-1.5 text-sm"
-												onClick={() => {
-													remove(entry.id);
-													setSelected((prev) => {
-														const next = new Set(prev);
-														next.delete(entry.id);
-														return next;
-													});
-													if (viewingId === entry.id) setViewingId(null);
-												}}
-											>
-												Delete
-											</button>
+											{isRenaming ? (
+												<>
+													<button
+														type="button"
+														className="border border-black bg-black px-3 py-1.5 text-sm text-white"
+														onClick={commitRename}
+													>
+														Save name
+													</button>
+													<button
+														type="button"
+														className="border border-black px-3 py-1.5 text-sm"
+														onClick={cancelRename}
+													>
+														Cancel
+													</button>
+												</>
+											) : (
+												<>
+													<button
+														type="button"
+														className="border border-black px-3 py-1.5 text-sm"
+														onClick={() => beginRename(entry)}
+													>
+														Rename
+													</button>
+													<button
+														type="button"
+														className="border border-black px-3 py-1.5 text-sm"
+														aria-expanded={isViewing}
+														onClick={() =>
+															setViewingId(isViewing ? null : entry.id)
+														}
+													>
+														{isViewing ? "Hide" : "View"}
+													</button>
+													<button
+														type="button"
+														className="border border-black px-3 py-1.5 text-sm"
+														onClick={() => onUse(entry.questions)}
+													>
+														Use
+													</button>
+													<button
+														type="button"
+														className="border border-black px-3 py-1.5 text-sm"
+														onClick={() => {
+															remove(entry.id);
+															setSelected((prev) => {
+																const next = new Set(prev);
+																next.delete(entry.id);
+																return next;
+															});
+															if (viewingId === entry.id) setViewingId(null);
+															if (renamingId === entry.id) cancelRename();
+														}}
+													>
+														Delete
+													</button>
+												</>
+											)}
 										</div>
 									</div>
 
