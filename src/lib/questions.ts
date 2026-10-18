@@ -2,6 +2,8 @@ export type Question = {
 	q: string;
 	choices: Array<string | number>;
 	ans: string | number;
+	/** Optional image URL or data URL shown with the question. */
+	image?: string;
 };
 
 function normalizeChoices(value: unknown): Array<string | number> | null {
@@ -63,7 +65,14 @@ export function parseQuestions(raw: string): Question[] {
 			throw new Error(`Item ${i + 1} is missing "ans".`);
 		}
 
-		questions.push({ q, choices, ans: ans as string | number });
+		questions.push({
+			q,
+			choices,
+			ans: ans as string | number,
+			...(typeof record.image === "string" && record.image.trim()
+				? { image: record.image.trim() }
+				: {}),
+		});
 	}
 
 	return questions;
@@ -89,6 +98,7 @@ export const CHATBOT_QUESTION_TEMPLATE = `[
   {
     "q": "Your question?",
     "choices": [4.25, 5, 3.67, 2],
-    "ans": 4.25
+    "ans": 4.25,
+    "image": "https://example.com/image.jpg"
   }
 ]`;

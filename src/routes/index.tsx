@@ -439,6 +439,90 @@ function CopyTemplateButton() {
 	);
 }
 
+function QuestionImage({ image }: { image?: string }) {
+	if (!image) return null;
+	return (
+		<img
+			src={image}
+			alt="Question"
+			className="mt-3 max-h-80 max-w-full border-theme object-contain"
+		/>
+	);
+}
+
+function ImageEditor({
+	image,
+	onChange,
+}: {
+	image?: string;
+	onChange: (image: string) => void;
+}) {
+	const fileRef = useRef<HTMLInputElement>(null);
+
+	function readImage(file: File) {
+		if (!file.type.startsWith("image/")) return;
+		const reader = new FileReader();
+		reader.onload = () => {
+			if (typeof reader.result === "string") onChange(reader.result);
+		};
+		reader.readAsDataURL(file);
+	}
+
+	return (
+		<div className="mt-3">
+			<label className="block text-xs">
+				Image link or paste an image
+				<input
+					type="url"
+					className="mt-1 block w-full border-theme px-2 py-1.5 text-sm"
+					value={image?.startsWith("data:") ? "" : image ?? ""}
+					placeholder="https://example.com/image.jpg"
+					onChange={(event) => onChange(event.target.value)}
+					onPaste={(event) => {
+						const file = Array.from(event.clipboardData.items)
+							.find((item) => item.type.startsWith("image/"))
+							?.getAsFile();
+						if (file) {
+							event.preventDefault();
+							readImage(file);
+						}
+					}}
+				/>
+			</label>
+			<div className="mt-2 flex flex-wrap items-center gap-2">
+				<button
+					type="button"
+					className="border-theme px-2 py-1 text-xs"
+					onClick={() => fileRef.current?.click()}
+				>
+					Choose image
+				</button>
+				{image ? (
+					<button
+						type="button"
+						className="border-theme px-2 py-1 text-xs"
+						onClick={() => onChange("")}
+					>
+						Remove image
+					</button>
+				) : null}
+				<input
+					ref={fileRef}
+					type="file"
+					accept="image/*"
+					className="hidden"
+					onChange={(event) => {
+						const file = event.target.files?.[0];
+						if (file) readImage(file);
+						event.target.value = "";
+					}}
+				/>
+			</div>
+			<QuestionImage image={image} />
+		</div>
+	);
+}
+
 type PendingConfirm =
 	| { kind: "clear-bank" }
 	| { kind: "clear-site" }
@@ -457,6 +541,7 @@ function QuestionBankPanel({
 	const clearBank = useQuestionBank((s) => s.clearBank);
 	const clearAllSiteData = useQuestionBank((s) => s.clearAllSiteData);
 	const save = useQuestionBank((s) => s.save);
+	const updateQuestions = useQuestionBank((s) => s.updateQuestions);
 	const [selected, setSelected] = useState<Set<string>>(new Set());
 	const [viewingId, setViewingId] = useState<string | null>(null);
 	const [showAnswers, setShowAnswers] = useState(false);
@@ -853,12 +938,23 @@ function QuestionBankPanel({
 										</div>
 									</div>
 									<ol className="list-decimal space-y-4 overflow-y-auto p-4 pl-9">
-										{viewingEntry.questions.map((question) => (
+										{viewingEntry.questions.map((question, questionIndex) => (
 											<li
 												key={`${question.q}::${String(question.ans)}`}
 												className="text-sm"
 											>
 												<p className="font-medium">{question.q}</p>
+												<ImageEditor
+													image={question.image}
+													onChange={(image) => {
+														const updated = viewingEntry.questions.map((item, index) =>
+															index === questionIndex
+															? { ...item, image: image || undefined }
+															: item,
+														);
+														updateQuestions(viewingEntry.id, updated);
+													}}
+												/>
 												<ul className="mt-2 space-y-1">
 													{question.choices.map((choice) => {
 														const isAnswer =
@@ -1226,6 +1322,7 @@ function QuizTaking({
 
 			<main className="mx-auto max-w-3xl p-8">
 				<h1 className="text-2xl font-bold leading-snug">{current.q}</h1>
+				<QuestionImage image={current.image} />
 
 				<fieldset className="mt-8">
 					<legend className="sr-only">Choices</legend>
@@ -1342,6 +1439,7 @@ function QuizResults({
 								}`}
 							>
 								<div className="font-medium">{question.q}</div>
+				<QuestionImage image={question.image} />
 								<p className="mt-2 text-sm font-semibold">
 									{unanswered
 										? "Unanswered — incorrect"
