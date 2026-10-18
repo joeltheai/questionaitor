@@ -450,6 +450,92 @@ function QuestionImage({ image }: { image?: string }) {
 	);
 }
 
+function ZoomableQuestionImage({ image }: { image?: string }) {
+	const [open, setOpen] = useState(false);
+	const [zoom, setZoom] = useState(1);
+
+	useEffect(() => {
+		if (!open) return;
+		function onKeyDown(event: KeyboardEvent) {
+			if (event.key === "Escape") setOpen(false);
+		}
+		window.addEventListener("keydown", onKeyDown);
+		return () => window.removeEventListener("keydown", onKeyDown);
+	}, [open]);
+
+	if (!image) return null;
+
+	return (
+		<>
+			<button
+				type="button"
+				className="mt-3 block cursor-zoom-in"
+				aria-label="View question image larger"
+				onClick={() => {
+					setZoom(1);
+					setOpen(true);
+				}}
+			>
+				<img
+					src={image}
+					alt="Question"
+					className="max-h-80 max-w-full border-theme object-contain"
+				/>
+			</button>
+			{open ? (
+				<div
+					className="fixed inset-0 z-50 flex flex-col bg-black/90 p-4 sm:p-6"
+					role="dialog"
+					aria-modal="true"
+					aria-label="Question image viewer"
+					onMouseDown={(event) => {
+						if (event.target === event.currentTarget) setOpen(false);
+					}}
+				>
+					<div className="flex shrink-0 items-center justify-center gap-2 pb-4 text-white">
+						<button
+							type="button"
+							className="border border-white px-3 py-2 text-xl disabled:opacity-40"
+							aria-label="Zoom out"
+							disabled={zoom <= 0.5}
+							onClick={() => setZoom((value) => Math.max(0.5, value - 0.25))}
+						>
+							−
+						</button>
+						<span className="min-w-16 text-center text-sm">
+							{Math.round(zoom * 100)}%
+						</span>
+						<button
+							type="button"
+							className="border border-white px-3 py-2 text-xl disabled:opacity-40"
+							aria-label="Zoom in"
+							disabled={zoom >= 3}
+							onClick={() => setZoom((value) => Math.min(3, value + 0.25))}
+						>
+							+
+						</button>
+						<button
+							type="button"
+							className="ml-3 border border-white px-3 py-2 text-sm"
+							onClick={() => setOpen(false)}
+						>
+							Close
+						</button>
+					</div>
+					<div className="flex min-h-0 flex-1 items-center justify-center overflow-auto">
+						<img
+							src={image}
+							alt="Question image enlarged"
+							className="h-auto shrink-0"
+							style={{ width: `min(${90 * zoom}vw, ${70 * zoom}rem)` }}
+						/>
+					</div>
+				</div>
+			) : null}
+		</>
+	);
+}
+
 function ImageEditor({
 	image,
 	onChange,
@@ -1322,7 +1408,7 @@ function QuizTaking({
 
 			<main className="mx-auto max-w-3xl p-8">
 				<h1 className="text-2xl font-bold leading-snug">{current.q}</h1>
-				<QuestionImage image={current.image} />
+				<ZoomableQuestionImage image={current.image} />
 
 				<fieldset className="mt-8">
 					<legend className="sr-only">Choices</legend>
